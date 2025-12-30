@@ -63,26 +63,53 @@ class Match(models.Model):
                 self._update_team_stats()
     
     def _update_team_stats(self):
-        """Takım istatistiklerini güncelle"""
+        """Takım istatistiklerini güncelle (Puan, G, B, M, Goller)"""
+        # Golleri işle
+        self.team1.goals_scored += self.team1_score
+        self.team1.goals_conceded += self.team2_score
+        self.team2.goals_scored += self.team2_score
+        self.team2.goals_conceded += self.team1_score
+        
+        # Sonucu işle
         if self.team1_score > self.team2_score:
             self.team1.wins += 1
+            self.team1.points += 3
             self.team2.losses += 1
         elif self.team2_score > self.team1_score:
             self.team2.wins += 1
+            self.team2.points += 3
             self.team1.losses += 1
-        # Beraberlik durumunda kazanma/kaybetme sayısı değişmez
+        else:
+            self.team1.draws += 1
+            self.team1.points += 1
+            self.team2.draws += 1
+            self.team2.points += 1
         
         self.team1.save()
         self.team2.save()
     
     def _revert_team_stats(self, old_match):
         """Eski maç sonucunu geri al"""
+        # Golleri geri al
+        self.team1.goals_scored -= old_match.team1_score
+        self.team1.goals_conceded -= old_match.team2_score
+        self.team2.goals_scored -= old_match.team2_score
+        self.team2.goals_conceded -= old_match.team1_score
+        
+        # Sonucu geri al
         if old_match.team1_score > old_match.team2_score:
             self.team1.wins -= 1
+            self.team1.points -= 3
             self.team2.losses -= 1
         elif old_match.team2_score > old_match.team1_score:
             self.team2.wins -= 1
+            self.team2.points -= 3
             self.team1.losses -= 1
+        else:
+            self.team1.draws -= 1
+            self.team1.points -= 1
+            self.team2.draws -= 1
+            self.team2.points -= 1
         
         self.team1.save()
         self.team2.save()

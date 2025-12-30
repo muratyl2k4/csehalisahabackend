@@ -13,6 +13,7 @@ urlpatterns = [
     path('api/teams/', include('teams.urls')),
     path('api/players/', include('players.urls')),
     path('api/matches/', include('matches.urls')),
+    path('api/auth/', include('players.auth_urls')),
 ]
 
 # Serve media files in development

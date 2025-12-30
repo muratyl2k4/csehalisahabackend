@@ -1,21 +1,51 @@
-from rest_framework import viewsets
+from rest_framework import viewsets, filters, generics, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework_simplejwt.views import TokenObtainPairView
 from django.db.models import Sum, Count
 from .models import Player
-from .serializers import PlayerListSerializer, PlayerDetailSerializer, LeaderboardSerializer
+from .serializers import (
+    PlayerListSerializer,
+    PlayerDetailSerializer,
+    LeaderboardSerializer,
+    LeaderboardSerializer,
+    PlayerRegisterSerializer,
+    EmailTokenObtainPairSerializer
+)
 
 
-class PlayerViewSet(viewsets.ReadOnlyModelViewSet):
+class RegisterView(generics.CreateAPIView):
+    queryset = Player.objects.all()
+    permission_classes = (AllowAny,)
+    serializer_class = PlayerRegisterSerializer
+
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    serializer_class = EmailTokenObtainPairSerializer
+
+
+class PlayerViewSet(viewsets.ModelViewSet):
     """
     Oyuncular için ViewSet
     
     list: Tüm oyuncuları listele
     retrieve: Tek bir oyuncunun detaylarını getir
     """
-    queryset = Player.objects.all().select_related('current_team')
+    # queryset = Player.objects.all().select_related('current_team') # Moved to get_queryset
     permission_classes = [AllowAny]
+    
+    def get_queryset(self):
+        """
+        Listelemede sadece takımı olanları göster ve overall'a göre sırala.
+        Detayda herkesi göster.
+        """
+        qs = Player.objects.select_related('current_team').order_by('-overall')
+        
+        if self.action == 'list':
+            qs = qs.filter(current_team__isnull=False)
+            
+        return qs
     
     def get_serializer_class(self):
         if self.action == 'retrieve':

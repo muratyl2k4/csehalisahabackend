@@ -28,9 +28,12 @@ class MatchViewSet(viewsets.ReadOnlyModelViewSet):
         
         team_id = self.request.query_params.get('team', None)
         player_id = self.request.query_params.get('player', None)
+        
+        #?team=id
         if team_id is not None:
             queryset = queryset.filter(Q(team1_id=team_id) | Q(team2_id=team_id))
 
+        #?player=id
         elif player_id is not None:
             queryset = queryset.filter(Q(team1_playermatchstats__player_id=player_id) | Q(team2_playermatchstats__player_id=player_id))
 

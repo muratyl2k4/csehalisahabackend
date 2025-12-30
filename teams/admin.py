@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Team
+from .models import Team, TransferRequest
 
 
 @admin.register(Team)
@@ -11,7 +11,7 @@ class TeamAdmin(admin.ModelAdmin):
     
     fieldsets = (
         ('Takım Bilgileri', {
-            'fields': ('name', 'short_name', 'logo')
+            'fields': ('captain','name', 'short_name', 'logo')
         }),
         ('İstatistikler', {
             'fields': ('wins', 'losses')
@@ -20,3 +20,9 @@ class TeamAdmin(admin.ModelAdmin):
             'fields': ('created_at',)
         }),
     )
+
+@admin.register(TransferRequest)
+class TransferRequestAdmin(admin.ModelAdmin):
+    list_display = ['player', 'team', 'status', 'created_at']
+    list_filter = ['status', 'team']
+    search_fields = ['player__user__username', 'player__name', 'team__name']
