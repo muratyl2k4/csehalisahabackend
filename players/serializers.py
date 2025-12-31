@@ -8,7 +8,7 @@ import uuid
 
 class PlayerRegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
-    email = serializers.EmailField(write_only=True, required=False)
+    email = serializers.EmailField(write_only=True, required=True)
     
     # Player profile fields
     name = serializers.CharField(required=True)
@@ -18,6 +18,11 @@ class PlayerRegisterSerializer(serializers.ModelSerializer):
         model = Player
         fields = ('password', 'email', 'name', 'position', 'age', 'overall', 'photo')
         read_only_fields = ('overall',)
+
+    def validate_email(self, value):
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("Bu E-posta adresi zaten kullanımda.")
+        return value
 
     def create(self, validated_data):
         # 1. Generate unique username

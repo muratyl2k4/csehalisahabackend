@@ -42,8 +42,8 @@ class PlayerViewSet(viewsets.ModelViewSet):
         """
         qs = Player.objects.select_related('current_team').order_by('-overall')
         
-        if self.action == 'list':
-            qs = qs.filter(current_team__isnull=False)
+        # if self.action == 'list':
+        #     qs = qs.filter(current_team__isnull=False)
             
         return qs
     
