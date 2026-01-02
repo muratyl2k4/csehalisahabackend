@@ -26,10 +26,18 @@ class TeamListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Team
         fields = ['id', 'name', 'short_name', 'logo', 'wins', 'losses', 'draws', 'goals_scored', 'goals_conceded', 'goal_difference', 'points', 'total_matches', 'win_rate', 'created_at']
+        read_only_fields = ['wins', 'losses', 'draws', 'goals_scored', 'goals_conceded', 'points', 'created_at']
 
 
 class TeamCreateSerializer(serializers.ModelSerializer):
     """Takım oluşturma için serializer"""
+    class Meta:
+        model = Team
+        fields = ['name', 'short_name', 'logo']
+
+
+class TeamUpdateSerializer(serializers.ModelSerializer):
+    """Takım güncelleme için serializer (Sadece izin verilen alanlar)"""
     class Meta:
         model = Team
         fields = ['name', 'short_name', 'logo']
@@ -50,12 +58,14 @@ class TeamDetailSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Team
-        fields = ['id', 'name', 'logo', 'wins', 'losses', 'draws', 'goals_scored', 'goals_conceded', 'goal_difference', 'points', 'total_matches', 'win_rate', 'captain_id', 'captain_name', 'players', 'recent_matches', 'pending_requests', 'user_request_status', 'created_at']
+        fields = ['id', 'name', 'short_name', 'logo', 'wins', 'losses', 'draws', 'goals_scored', 'goals_conceded', 'goal_difference', 'points', 'total_matches', 'win_rate', 'captain_id', 'captain_name', 'players', 'recent_matches', 'pending_requests', 'user_request_status', 'created_at']
+        read_only_fields = ['wins', 'losses', 'draws', 'goals_scored', 'goals_conceded', 'points', 'created_at']
     
     def get_players(self, obj):
         """Takımın oyuncularını getir"""
         from players.serializers import PlayerListSerializer
-        players = obj.players.all()
+        # Optimize: Prefetch user to avoid N+1 when serializing 'username'
+        players = obj.players.all().select_related('user')
         return PlayerListSerializer(players, many=True, context=self.context).data
 
     def get_recent_matches(self, obj):

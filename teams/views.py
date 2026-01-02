@@ -4,7 +4,7 @@ from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
 from django.db.models import Count, Q
 from .models import Team, TransferRequest
-from .serializers import TeamListSerializer, TeamDetailSerializer, TeamCreateSerializer, TransferRequestSerializer
+from .serializers import TeamListSerializer, TeamDetailSerializer, TeamCreateSerializer, TeamUpdateSerializer, TransferRequestSerializer
 
 
 class TeamViewSet(viewsets.ModelViewSet):
@@ -16,20 +16,49 @@ class TeamViewSet(viewsets.ModelViewSet):
     retrieve: Tek bir takımın detaylarını getir
     join: Takıma katılma isteği gönder
     """
-    queryset = Team.objects.all()
+    def get_queryset(self):
+        qs = Team.objects.all().select_related('captain')
+        return qs
     
     def get_permissions(self):
-        if self.action in ['create', 'join']:
+        if self.action in ['create', 'join', 'leave', 'update', 'partial_update', 'destroy']:
             permission_classes = [IsAuthenticated]
         else:
             permission_classes = [AllowAny]
         return [permission() for permission in permission_classes]
+    
+    def update(self, request, *args, **kwargs):
+        # Override update to ensure only captain can update
+        instance = self.get_object()
+        player = getattr(request.user, 'player_profile', None)
+        if not player or instance.captain != player:
+             return Response({'detail': 'Sadece takım kaptanı güncelleme yapabilir.'}, status=status.HTTP_403_FORBIDDEN)
+        return super().update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        # Override destroy to ensure only captain can delete
+        instance = self.get_object()
+        player = getattr(request.user, 'player_profile', None)
+        if not player or instance.captain != player:
+             return Response({'detail': 'Sadece takım kaptanı takımı silebilir.'}, status=status.HTTP_403_FORBIDDEN)
+        return super().destroy(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        # Override partial_update to ensure only captain can update
+        instance = self.get_object()
+        player = getattr(request.user, 'player_profile', None)
+        if not player or instance.captain != player:
+             return Response({'detail': 'Sadece takım kaptanı güncelleme yapabilir.'}, status=status.HTTP_403_FORBIDDEN)
+        return super().partial_update(request, *args, **kwargs)
+
     
     def get_serializer_class(self):
         if self.action == 'retrieve':
             return TeamDetailSerializer
         if self.action == 'create':
             return TeamCreateSerializer
+        if self.action in ['update', 'partial_update']:
+             return TeamUpdateSerializer
         return TeamListSerializer
 
     def create(self, request, *args, **kwargs):
@@ -76,6 +105,29 @@ class TeamViewSet(viewsets.ModelViewSet):
              
         TransferRequest.objects.create(player=player, team=team)
         return Response({'detail': 'Katılma isteği gönderildi.'}, status=200)
+
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
+    def leave(self, request):
+        """Takımdan ayrıl"""
+        user = request.user
+        if not hasattr(user, 'player_profile'):
+            return Response({'detail': 'Oyuncu profili bulunamadı.'}, status=400)
+            
+        player = user.player_profile
+        team = player.current_team
+        
+        if not team:
+             return Response({'detail': 'Herhangi bir takımda değilsiniz.'}, status=400)
+             
+        # Check if Captain
+        if team.captain == player:
+            return Response({'detail': 'Takım kaptanı takımdan ayrılamaz. Önce kaptanlığı devredin veya takımı silin.'}, status=400)
+            
+        # Leave
+        player.current_team = None
+        player.save()
+        
+        return Response({'detail': 'Takımdan başarıyla ayrıldınız.'}, status=200)
 
 
 class TransferRequestViewSet(viewsets.GenericViewSet, viewsets.mixins.ListModelMixin, viewsets.mixins.RetrieveModelMixin):

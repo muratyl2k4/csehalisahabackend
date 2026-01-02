@@ -26,6 +26,11 @@ class Player(models.Model):
         related_name='players',
         verbose_name='Güncel Takım'
     )
+
+    # Verification Fields
+    is_email_verified = models.BooleanField(default=False, verbose_name='E-posta Doğrulandı mı?')
+    verification_code = models.CharField(max_length=6, blank=True, null=True, verbose_name='Doğrulama Kodu')
+    verification_code_created_at = models.DateTimeField(blank=True, null=True, verbose_name='Kod Oluşturulma Tarihi')
     
     name = models.CharField(max_length=100, verbose_name='Görünen Ad') # Sahadaki ismi
 
@@ -45,12 +50,12 @@ class Player(models.Model):
     POSITION_CHOICES = [
         ('KL', 'Kaleci'),
         ('SLB', 'Sol Bek'),
-        ('SĞB', 'Sağ Bek'),
+        ('SGB', 'Sağ Bek'),
         ('STP', 'Stoper'),
         ('MO', 'Merkez Orta Saha'),
         ('MOO', 'Merkez Ofansif Orta Saha'),
         ('SLK', 'Sol Kanat'),
-        ('SĞK', 'Sağ Kanat'),
+        ('SGK', 'Sağ Kanat'),
         ('ST', 'Santrafor'),
     ]
 
@@ -113,7 +118,7 @@ class Player(models.Model):
                 self.physical * 0.15 +
                 self.passing * 0.05
             )
-        elif p in ['SLK', 'SĞK']:
+        elif p in ['SLK', 'SGK']:
             # Kanat: PAC(35%), DRI(25%), PAS(20%), SHO(15%), PHY(5%)
             score = (
                 self.pace * 0.35 +
@@ -141,7 +146,7 @@ class Player(models.Model):
                 self.pace * 0.10 +
                 self.defense * 0.10
             )
-        elif p in ['SLB', 'SĞB']:
+        elif p in ['SLB', 'SGB']:
             # Bek: PAC(30), DEF(10), PAS(15), DRI(15), PHY(30) -> Wait user wrote:
             # "Bek,30,0,15,15,30,10" -> Order was PAC, SHO, PAS, DRI, DEF, PHY
             # So: PAC=30, SHO=0, PAS=15, DRI=15, DEF=30, PHY=10
@@ -177,7 +182,7 @@ class Player(models.Model):
             self.shooting, self.pace = 78, 78
             self.dribbling, self.physical = 74, 74
             self.passing, self.defense = 60, 35
-        elif p in ['SLK', 'SĞK']:
+        elif p in ['SLK', 'SGK']:
             self.pace, self.dribbling = 82, 78
             self.passing, self.shooting = 74, 70
             self.physical, self.defense = 60, 40
@@ -189,7 +194,7 @@ class Player(models.Model):
                 self.defense = 50
                 self.passing = 82
                 self.dribbling = 80
-        elif p in ['SLB', 'SĞB']:
+        elif p in ['SLB', 'SGB']:
             self.pace, self.defense = 78, 76
             self.physical, self.dribbling = 74, 72
             self.passing, self.shooting = 70, 50
@@ -199,9 +204,6 @@ class Player(models.Model):
             self.dribbling, self.shooting = 55, 40
 
     def save(self, *args, **kwargs):
-        from django.core.files.uploadedfile import UploadedFile
-        from utils import process_image_content
-
         # Sync name from User if linked
         if self.user:
             full_name = self.user.get_full_name()

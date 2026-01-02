@@ -3,16 +3,29 @@ from django.contrib.auth.models import User
 from .models import Player
 from teams.models import Team
 
+from django.utils import timezone
 from django.utils.text import slugify
 import uuid
+import random
+from utils.email_service import EmailService
 
 class PlayerRegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
     email = serializers.EmailField(write_only=True, required=True)
     
     # Player profile fields
-    name = serializers.CharField(required=True)
+    # Player profile fields
+    name = serializers.CharField(required=True, max_length=30)
     position = serializers.ChoiceField(choices=Player.POSITION_CHOICES, required=True)
+
+    def validate_name(self, value):
+        import re
+        # Regex: Sadece harfler (Türkçe dahil) ve boşluklar. Rakam veya sembol YOK.
+        if not re.match(r'^[a-zA-ZçÇğĞıİöÖşŞüÜ\s]+$', value):
+            raise serializers.ValidationError("İsim sadece harflerden oluşmalıdır. Özel karakter veya sayı kullanılamaz.")
+        if len(value) < 3:
+             raise serializers.ValidationError("İsim en az 3 karakter olmalıdır.")
+        return value
     
     class Meta:
         model = Player
@@ -25,74 +38,109 @@ class PlayerRegisterSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data):
-        # 1. Generate unique username
-        base_username = slugify(validated_data['name']).replace('-', '') or 'user'
-        unique_suffix = uuid.uuid4().hex[:6]
-        generated_username = f"{base_username}_{unique_suffix}"
+        from django.db import transaction
+        
+        try:
+            with transaction.atomic():
+                # 1. Generate unique username
+                base_username = slugify(validated_data['name']).replace('-', '') or 'user'
+                unique_suffix = uuid.uuid4().hex[:6]
+                generated_username = f"{base_username}_{unique_suffix}"
+    
+                # CREATE USER
+                name_parts = validated_data['name'].strip().split(' ', 1)
+                first_name = name_parts[0]
+                last_name = name_parts[1] if len(name_parts) > 1 else ''
+    
+                user_data = {
+                    'username': generated_username,
+                    'password': validated_data.pop('password'),
+                    'email': validated_data.get('email', ''),
+                    'first_name': first_name,
+                    'last_name': last_name
+                }
+                if 'email' in validated_data: validated_data.pop('email')
+                
+                user = User.objects.create_user(**user_data)
+                
+                # CREATE PLAYER PROFILE
+                verification_code = str(random.randint(100000, 999999))
+                player = Player.objects.create(
+                    user=user, 
+                    verification_code=verification_code,
+                    verification_code_created_at=timezone.now(),
+                    **validated_data
+                )
+                
+                # VERIFICATION EMAIL
+                EmailService.send_html(
+                    'Akdeniz CSE Halısaha - E-posta Doğrulama',
+                    'emails/verification.html',
+                    {'name': first_name, 'code': verification_code},
+                    [user.email]
+                )
+                
+                
+                player.save() 
 
-        # 2. Create User
-        name_parts = validated_data['name'].strip().split(' ', 1)
-        first_name = name_parts[0]
-        last_name = name_parts[1] if len(name_parts) > 1 else ''
+                # Welcome Notification
+                from notifications.models import Notification
+                Notification.objects.create(
+                    recipient=user,
+                    message="Hoş geldiniz! Hesabınız başarıyla oluşturuldu. Keyifli vakitler dileriz.",
+                    notification_type='SYSTEM'
+                )
 
-        user_data = {
-            'username': generated_username,
-            'password': validated_data.pop('password'),
-            'email': validated_data.get('email', ''),
-            'first_name': first_name,
-            'last_name': last_name
-        }
-        if 'email' in validated_data: validated_data.pop('email')
-        
-        user = User.objects.create_user(**user_data)
-        
-        # 3. Create Player Profile
-        player = Player.objects.create(user=user, **validated_data)
-        
-        # Calculate overall on creation
-        player.save() 
-        return player
+                return player
+        except Exception as e:
+            # SEND ERROR TO CLIENT
+            raise e
 
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import authenticate
 
 class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
-        # Username field sent from frontend -> treated as email
+        # FRONTEND USERNAME -> EMAIL
         email = attrs.get('username') 
         password = attrs.get('password')
 
         if email and password:
             try:
-                # Find user by email
+                
                 user_obj = User.objects.get(email=email)
                 username = user_obj.username
                 
-                # Authenticate with found username
+                
                 user = authenticate(username=username, password=password)
                 
                 if user:
-                     # Add token logic from parent
+                     
                     data = super().validate({'username': username, 'password': password})
                     
-                    # Custom Data in Response
+                  
                     data['username'] = user.username
                     data['email'] = user.email
                     if hasattr(user, 'player_profile'):
                         data['name'] = user.player_profile.name
                         data['id'] = user.player_profile.id
                         data['photo'] = user.player_profile.photo.url if user.player_profile.photo else None
+                        data['id'] = user.player_profile.id
+                        data['photo'] = user.player_profile.photo.url if user.player_profile.photo else None
                         data['current_team'] = user.player_profile.current_team.id if user.player_profile.current_team else None
+                        data['current_team'] = user.player_profile.current_team.id if user.player_profile.current_team else None
+                        data['is_email_verified'] = user.player_profile.is_email_verified
+                    
+                    data['is_staff'] = user.is_staff 
                     
                     return data
             except User.DoesNotExist:
                 pass
         
-        # If fetch fails or auth fails
+        # IF FAILS
         raise serializers.ValidationError('No active account found with the given credentials')
 
 class PlayerListSerializer(serializers.ModelSerializer):
-    """Oyuncu listesi için serializer"""
     total_goals = serializers.ReadOnlyField()
     total_assists = serializers.ReadOnlyField()
     matches_played = serializers.ReadOnlyField()
@@ -110,6 +158,11 @@ class PlayerListSerializer(serializers.ModelSerializer):
             'total_goals', 'total_assists', 'matches_played',
             'created_at'
         ]
+        read_only_fields = [
+            'overall', 'pace', 'shooting', 'passing', 'dribbling', 'defense', 'physical',
+            'diving', 'handling', 'kicking', 'reflexes', 'speed', 'positioning',
+            'total_goals', 'total_assists', 'matches_played', 'username', 'created_at'
+        ]
 
 class PlayerDetailSerializer(serializers.ModelSerializer):
     """Oyuncu detay için serializer"""
@@ -119,12 +172,13 @@ class PlayerDetailSerializer(serializers.ModelSerializer):
     current_team_name = serializers.CharField(source='current_team.name', read_only=True)
     current_team_logo = serializers.ImageField(source='current_team.logo', read_only=True)
     username = serializers.CharField(source='user.username', read_only=True)
+    email = serializers.EmailField(source='user.email', read_only=True)
     match_history = serializers.SerializerMethodField()
     
     class Meta:
         model = Player
         fields = [
-            'id', 'username', 'name', 'age', 'photo', 'position',
+            'id', 'username', 'email', 'name', 'age', 'photo', 'position',
             'current_team', 'current_team_name', 'current_team_logo',
             'overall', 
             # Outfield Stats
@@ -133,7 +187,13 @@ class PlayerDetailSerializer(serializers.ModelSerializer):
             'diving', 'handling', 'kicking', 'reflexes', 'speed', 'positioning',
             'total_goals', 'total_assists', 'matches_played',
             'match_history',
-            'created_at', 'updated_at'
+            'created_at', 'updated_at', 'is_email_verified'
+        ]
+        read_only_fields = [
+            'overall', 'pace', 'shooting', 'passing', 'dribbling', 'defense', 'physical',
+            'diving', 'handling', 'kicking', 'reflexes', 'speed', 'positioning',
+            'total_goals', 'total_assists', 'matches_played', 
+            'current_team', 'username', 'email'
         ]
     
     def get_match_history(self, obj):
@@ -163,3 +223,71 @@ class LeaderboardSerializer(serializers.ModelSerializer):
             'current_team_name', 'current_team_logo',
             'total_goals', 'total_assists', 'matches_played'
         ]
+
+class PlayerUpdateSerializer(serializers.ModelSerializer):
+    """Kullanıcının kendi profilini güncellemesi için serializer"""
+    name = serializers.CharField(required=False, max_length=30)
+    position = serializers.ChoiceField(choices=Player.POSITION_CHOICES, required=False)
+    photo = serializers.ImageField(required=False, allow_null=True)
+    email = serializers.EmailField(required=False)
+
+    class Meta:
+        model = Player
+        fields = ['name', 'position', 'photo', 'email']
+
+    def validate_email(self, value):
+        user = self.context['request'].user
+        if User.objects.filter(email=value).exclude(id=user.id).exists():
+            raise serializers.ValidationError("Bu E-posta adresi zaten kullanımda.")
+        return value
+
+    def validate_name(self, value):
+        import re
+        if not re.match(r'^[a-zA-ZçÇğĞıİöÖşŞüÜ\s]+$', value):
+            raise serializers.ValidationError("İsim sadece harflerden oluşmalıdır.")
+        if len(value) < 3:
+             raise serializers.ValidationError("İsim en az 3 karakter olmalıdır.")
+        return value
+
+    def update(self, instance, validated_data):
+        # Update Player fields
+        for attr, value in validated_data.items():
+            if attr != 'email': # Handle email separately
+                setattr(instance, attr, value)
+        
+        # Sync Name to User model if changed
+        user = instance.user
+        if 'name' in validated_data:
+            name_parts = validated_data['name'].strip().split(' ', 1)
+            first_name = name_parts[0]
+            last_name = name_parts[1] if len(name_parts) > 1 else ''
+            
+            user.first_name = first_name
+            user.last_name = last_name
+        
+        # Handle Email Change
+        if 'email' in validated_data and validated_data['email'] != user.email:
+            new_email = validated_data['email']
+            user.email = new_email
+            
+            # Generate new code
+            import random
+            verification_code = str(random.randint(100000, 999999))
+            
+            instance.is_email_verified = False # Reset verification
+            instance.verification_code = verification_code
+            instance.verification_code_created_at = timezone.now()
+            
+            # Send Verification Email
+            EmailService.send_html(
+                'Akdeniz CSE Halısaha - E-posta Değişikliği Doğrulama',
+                'emails/verification.html',
+                {'name': instance.name, 'code': verification_code},
+                [new_email]
+            )
+        
+        user.save()
+
+        # Save Player (triggers overall recalc and photo processing in model.save())
+        instance.save()
+        return instance

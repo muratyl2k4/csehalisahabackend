@@ -42,18 +42,6 @@ class Team(models.Model):
         return self.goals_scored - self.goals_conceded
 
     def save(self, *args, **kwargs):
-        from django.core.files.uploadedfile import UploadedFile
-        from utils import process_image_content
-
-        if self.logo:
-            try:
-                if hasattr(self.logo, 'file') and isinstance(self.logo.file, UploadedFile):
-                    processed = process_image_content(self.logo.file)
-                    if processed:
-                        self.logo.save(self.logo.name, processed, save=False)
-            except Exception as e:
-                print(f"Logo processing error: {e}")
-
         super().save(*args, **kwargs)
 
 class TransferRequest(models.Model):
