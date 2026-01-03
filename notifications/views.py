@@ -65,13 +65,33 @@ class NotificationViewSet(viewsets.ModelViewSet):
             return Response({"detail": "Mesaj içeriği gereklidir."}, status=status.HTTP_400_BAD_REQUEST)
 
         # 1. PUSH Gönderimi
+        # 1. PUSH Gönderimi
         subscriptions = []
+        target_users_for_db = []
+
         if target == 'all':
             # Herkese (Anonim dahil)
             subscriptions = SubscriptionInfo.objects.all()
+            from django.contrib.auth.models import User
+            target_users_for_db = User.objects.all()
+        elif target == 'single':
+            # Tek Kullanıcıya
+            username = request.data.get('username')
+            if not username:
+                return Response({"detail": "target='single' için 'username' gereklidir."}, status=status.HTTP_400_BAD_REQUEST)
+            
+            from django.contrib.auth.models import User
+            try:
+                user = User.objects.get(username=username)
+                subscriptions = [pi.subscription for pi in PushInformation.objects.filter(user=user).select_related('subscription')]
+                target_users_for_db = [user]
+            except User.DoesNotExist:
+                return Response({"detail": f"Kullanıcı bulunamadı: {username}"}, status=status.HTTP_404_NOT_FOUND)
         else:
-            # Sadece Kayıtlı Kullanıcılara
+            # Sadece Kayıtlı Kullanıcılara (Default)
             subscriptions = [pi.subscription for pi in PushInformation.objects.select_related('subscription').all()]
+            from django.contrib.auth.models import User
+            target_users_for_db = User.objects.all()
 
         s_count = 0
         import json
@@ -84,31 +104,38 @@ class NotificationViewSet(viewsets.ModelViewSet):
 
         # Tekrar eden subscriptionları önlemek için set kullanılabilir ama SubscriptionInfo unique ise gerek yok.
         # Basit döngü:
+        # Basit döngü:
+        errors = []
         for sub in subscriptions:
             try:
-                send_to_subscription(sub, payload, ttl=1000)
+                # iOS için ttl=60 (kısa tutmak bazen iyidir) ve urgency gerekebilir ama varsayılan genellikle çalışır.
+                send_to_subscription(sub, payload, ttl=86400)
                 s_count += 1
             except Exception as e:
-                print(f"Push Error for {sub.pk}: {e}")
-                pass
+                # Hata detayını kaydet
+                error_msg = f"Device {sub.pk} Error: {str(e)}"
+                print(error_msg)
+                errors.append(error_msg)
 
-        # 2. DB Kaydı (Inbox) - Her zaman kayıtlı kullanıcılara ekle
-        from django.contrib.auth.models import User
-        users = User.objects.all()
-        
+        # 2. DB Kaydı (Inbox)
         notifications = [
             Notification(
                 recipient=user,
                 title=title,
                 message=message,
                 notification_type='SYSTEM'
-            ) for user in users
+            ) for user in target_users_for_db
         ]
         
         Notification.objects.bulk_create(notifications)
         
+        response_detail = f"Mod: {target} | Hedef: {username if target == 'single' else 'Toplu'} | " \
+                          f"{s_count} Push Gönderildi | {len(notifications)} DB Kaydı."
+        if errors:
+            response_detail += f" Hatalar: {str(errors[:3])}"
+
         return Response({
-            "detail": f"{s_count} cihaza push gönderildi ({target}), {len(notifications)} kullanıcının kutusuna eklendi."
+            "detail": response_detail
         }, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=['post'])
