@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'players',
     'matches',
     'notifications',
+    'webpush',
 ]
 
 MIDDLEWARE = [
@@ -210,3 +211,10 @@ EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True') == 'True'
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
 EMAIL_FAIL_SILENTLY = False
+
+# WebPush Configuration
+WEBPUSH_SETTINGS = {
+    "VAPID_PUBLIC_KEY": "BOHqfyMHZP-9Po_eb3XI-0gK-VZccdrFYroITL_3cZzNj_X8umbTAqnkYkwW7Q_ao-kaYebHFPv9k_nvsSCrHFc",
+    "VAPID_PRIVATE_KEY": "N73Huxca7shRGqlr-ZPPmMmcL7ngckBLR6pyKdi9W20",
+    "VAPID_ADMIN_EMAIL": "mailto:admin@example.com"
+}
