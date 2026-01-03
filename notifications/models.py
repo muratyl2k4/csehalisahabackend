@@ -9,6 +9,7 @@ class Notification(models.Model):
     )
 
     recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications', verbose_name='Alıcı')
+    title = models.CharField(max_length=255, default='Yeni Bildirim', verbose_name='Başlık')
     message = models.TextField(verbose_name='Mesaj')
     notification_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='SYSTEM', verbose_name='Bildirim Tipi')
     is_read = models.BooleanField(default=False, verbose_name='Okundu mu?')

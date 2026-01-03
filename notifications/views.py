@@ -48,20 +48,58 @@ class NotificationViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'], permission_classes=[permissions.IsAdminUser])
     def broadcast(self, request):
         """
-        Tüm kullanıcılara bildirim gönderir (Sadece Admin).
-        POST /api/notifications/broadcast/
-        Body: { "message": "..." }
+        Bildirim Gönderme (Admin).
+        Modes:
+        - target='all': Tüm Cihazlara (Anonim + Kayıtlı) gönderir.
+        - target='users': Sadece Kayıtlı Kullanıcılara (PushInformation) gönderir.
+        Her iki durumda da kayıtlı kullanıcıların Inbox'ına eklenir.
         """
+        from webpush.models import SubscriptionInfo, PushInformation
+        from webpush.utils import send_to_subscription
+        
         message = request.data.get('message')
+        title = request.data.get('title', 'Duyuru')
+        target = request.data.get('target', 'users') # 'all' or 'users'
+        
         if not message:
             return Response({"detail": "Mesaj içeriği gereklidir."}, status=status.HTTP_400_BAD_REQUEST)
 
+        # 1. PUSH Gönderimi
+        subscriptions = []
+        if target == 'all':
+            # Herkese (Anonim dahil)
+            subscriptions = SubscriptionInfo.objects.all()
+        else:
+            # Sadece Kayıtlı Kullanıcılara
+            subscriptions = [pi.subscription for pi in PushInformation.objects.select_related('subscription').all()]
+
+        s_count = 0
+        import json
+        payload = json.dumps({
+            "title": title,
+            "body": message,
+            "icon": "/logo1.png",
+            "url": "/"
+        })
+
+        # Tekrar eden subscriptionları önlemek için set kullanılabilir ama SubscriptionInfo unique ise gerek yok.
+        # Basit döngü:
+        for sub in subscriptions:
+            try:
+                send_to_subscription(sub, payload, ttl=1000)
+                s_count += 1
+            except Exception as e:
+                print(f"Push Error for {sub.pk}: {e}")
+                pass
+
+        # 2. DB Kaydı (Inbox) - Her zaman kayıtlı kullanıcılara ekle
         from django.contrib.auth.models import User
         users = User.objects.all()
         
         notifications = [
             Notification(
                 recipient=user,
+                title=title,
                 message=message,
                 notification_type='SYSTEM'
             ) for user in users
@@ -69,10 +107,61 @@ class NotificationViewSet(viewsets.ModelViewSet):
         
         Notification.objects.bulk_create(notifications)
         
-        return Response({"detail": f"{len(notifications)} kullanıcıya bildirim gönderildi."}, status=status.HTTP_201_CREATED)
+        return Response({
+            "detail": f"{s_count} cihaza push gönderildi ({target}), {len(notifications)} kullanıcının kutusuna eklendi."
+        }, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=['post'])
     def mark_all_read(self, request):
         """Tüm bildirimleri okundu işaretle"""
         Notification.objects.filter(recipient=request.user, is_read=False).update(is_read=True)
         return Response({'status': 'all marked as read'})
+
+    @action(detail=False, methods=['post'])
+    def save_push_info(self, request):
+        """
+        WebPush abonelik bilgisini kaydeder (JWT uyumlu).
+        """
+        from webpush.models import PushInformation
+
+    @action(detail=False, methods=['post'], permission_classes=[permissions.AllowAny])
+    def register_subscription(self, request):
+        """
+        Basitleştirilmiş Abonelik Kaydı.
+        Hem giriş yapmış hem anonim (ileride gerekirse) cihazları kaydeder.
+        """
+        from webpush.models import PushInformation, SubscriptionInfo
+        
+        subscription_data = request.data.get('subscription')
+        browser = request.data.get('browser', 'Unknown')
+
+        if not subscription_data:
+            return Response({"detail": "No subscription data"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # 1. Cihaz/Tarayıcı Aboneliğini Kaydet (SubscriptionInfo)
+            endpoint = subscription_data.get('endpoint')
+            keys = subscription_data.get('keys', {})
+            
+            subscription_info, created = SubscriptionInfo.objects.get_or_create(
+                endpoint=endpoint,
+                defaults={
+                    "auth": keys.get('auth'),
+                    "p256dh": keys.get('p256dh'),
+                    "browser": browser,
+                    "user_agent": request.META.get('HTTP_USER_AGENT', '')
+                }
+            )
+
+            # 2. Eğer kullanıcı giriş yapmışsa, bu cihazı kullanıcıyla eşleştir (PushInformation)
+            if request.user.is_authenticated:
+                PushInformation.objects.get_or_create(
+                    user=request.user,
+                    subscription=subscription_info,
+                    defaults={}
+                )
+            
+            return Response({"status": "registered", "user": request.user.username}, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
