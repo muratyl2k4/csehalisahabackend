@@ -213,8 +213,13 @@ EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
 EMAIL_FAIL_SILENTLY = False
 
 # WebPush Configuration
+# WebPush Configuration
+# Keys might come with quotes from .env or dashboard, strip them just in case.
+vapid_public = os.environ.get("VAPID_PUBLIC_KEY", "")
+vapid_private = os.environ.get("VAPID_PRIVATE_KEY", "")
+
 WEBPUSH_SETTINGS = {
-    "VAPID_PUBLIC_KEY": os.environ.get("VAPID_PUBLIC_KEY"),
-    "VAPID_PRIVATE_KEY": os.environ.get("VAPID_PRIVATE_KEY"),
-    "VAPID_ADMIN_EMAIL": os.environ.get("VAPID_ADMIN_EMAIL", "mailto:admin@example.com")
+    "VAPID_PUBLIC_KEY": vapid_public.replace('"', '').strip(),
+    "VAPID_PRIVATE_KEY": vapid_private.replace('"', '').strip(),
+    "VAPID_ADMIN_EMAIL": os.environ.get("VAPID_ADMIN_EMAIL", "mailto:admin@example.com").replace('"', '').strip()
 }

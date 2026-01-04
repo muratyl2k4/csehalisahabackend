@@ -18,12 +18,16 @@ class NotificationViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         """
-        Özel aksiyonlar (mark_read, mark_all_read) için sadece giriş yapmış olmak yeterli.
-        Diğer işlemler (create, update, delete) için Admin veya ReadOnly gerekli.
+        Özel aksiyonlar için izinleri ayarla.
         """
-        if self.action in ['mark_read', 'mark_all_read', 'unread_count']:
+        if self.action == 'register_subscription':
+            permission_classes = [permissions.AllowAny]
+        elif self.action == 'broadcast':
+            permission_classes = [permissions.IsAdminUser]
+        elif self.action in ['mark_read', 'mark_all_read', 'unread_count', 'save_push_info']:
             permission_classes = [permissions.IsAuthenticated]
         else:
+            # list, retrieve, destroy vb.
             permission_classes = [permissions.IsAuthenticated, (permissions.IsAdminUser | IsReadOnly)]
         
         return [permission() for permission in permission_classes]
