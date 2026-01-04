@@ -218,8 +218,11 @@ EMAIL_FAIL_SILENTLY = False
 vapid_public = os.environ.get("VAPID_PUBLIC_KEY", "")
 vapid_private = os.environ.get("VAPID_PRIVATE_KEY", "")
 
+# Apple strictly requires mailto: for the 'sub' claim in most cases
+vapid_contact = "mailto:akdenizcselig@gmail.com"
+
 WEBPUSH_SETTINGS = {
-    "VAPID_PUBLIC_KEY": vapid_public.replace('"', '').strip(),
-    "VAPID_PRIVATE_KEY": vapid_private.replace('"', '').strip(),
-    "VAPID_ADMIN_EMAIL": os.environ.get("VAPID_ADMIN_EMAIL", "mailto:admin@example.com").replace('"', '').strip()
+    "VAPID_PUBLIC_KEY": "BK8dUHkFU9-FUji0p9ZCH73InHmvIWYhNeHnjg6sR3iBw1gFfqArwX4XkC6XwirE7tLmBUMcOVB58tNjQlPJmuI",
+    "VAPID_PRIVATE_KEY": "vokzWx36wRxAC1BWWVKskRwR1QzhxRGkvEixejFa1zI",
+    "VAPID_ADMIN_EMAIL": vapid_contact
 }

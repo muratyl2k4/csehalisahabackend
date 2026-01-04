@@ -106,22 +106,7 @@ class NotificationViewSet(viewsets.ModelViewSet):
             "url": "/"
         })
 
-        # Tekrar eden subscriptionları önlemek için set kullanılabilir ama SubscriptionInfo unique ise gerek yok.
-        # Basit döngü:
-        # Basit döngü:
-        errors = []
-        for sub in subscriptions:
-            try:
-                # iOS için ttl=60 (kısa tutmak bazen iyidir) ve urgency gerekebilir ama varsayılan genellikle çalışır.
-                send_to_subscription(sub, payload, ttl=86400)
-                s_count += 1
-            except Exception as e:
-                # Hata detayını kaydet
-                error_msg = f"Device {sub.pk} Error: {str(e)}"
-                print(error_msg)
-                errors.append(error_msg)
-
-        # 2. DB Kaydı (Inbox)
+        # 2. DB Kaydı (Inbox) - Synchronous for immediate UI update
         notifications = [
             Notification(
                 recipient=user,
@@ -130,16 +115,53 @@ class NotificationViewSet(viewsets.ModelViewSet):
                 notification_type='SYSTEM'
             ) for user in target_users_for_db
         ]
-        
         Notification.objects.bulk_create(notifications)
-        
-        response_detail = f"Mod: {target} | Hedef: {username if target == 'single' else 'Toplu'} | " \
-                          f"{s_count} Push Gönderildi | {len(notifications)} DB Kaydı."
-        if errors:
-            response_detail += f" Hatalar: {str(errors[:3])}"
 
+        # 3. PUSH Gönderimi (Asynchronous / Threaded)
+        # Prepare data for thread to avoid DB connection issues
+        sub_data_list = []
+        for sub in subscriptions:
+            sub_data_list.append({
+                "endpoint": sub.endpoint,
+                "keys": {
+                    "auth": sub.auth,
+                    "p256dh": sub.p256dh
+                }
+            })
+
+        from django.conf import settings
+        import threading
+        
+        def send_push_thread(sub_list, payload, private_key, email):
+            from pywebpush import webpush
+            print(f"--- Thread Started: Sending to {len(sub_list)} devices ---")
+            success_count = 0
+            for sub_info in sub_list:
+                try:
+                    webpush(
+                        subscription_info=sub_info,
+                        data=payload,
+                        vapid_private_key=private_key,
+                        vapid_claims={"sub": email},
+                        ttl=60
+                    )
+                    success_count += 1
+                except Exception as e:
+                    # Log error silently or to file
+                    pass
+            print(f"--- Thread Finished: {success_count}/{len(sub_list)} sent ---")
+
+        # Start Thread
+        t = threading.Thread(target=send_push_thread, args=(
+            sub_data_list, 
+            payload, 
+            settings.WEBPUSH_SETTINGS['VAPID_PRIVATE_KEY'],
+            settings.WEBPUSH_SETTINGS['VAPID_ADMIN_EMAIL']
+        ))
+        t.start()
+        
         return Response({
-            "detail": response_detail
+            "detail": f"Bildirim işlemi başlatıldı. ({len(sub_data_list)} Cihaz / {len(notifications)} Kullanıcı)"
         }, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=['post'])
@@ -169,6 +191,11 @@ class NotificationViewSet(viewsets.ModelViewSet):
         if not subscription_data:
             return Response({"detail": "No subscription data"}, status=status.HTTP_400_BAD_REQUEST)
 
+        # DEBUG: Log iOS Subscriptions - Kept minimal for monitoring
+        user_agent = request.META.get('HTTP_USER_AGENT', '')
+        if 'iPhone' in user_agent or 'iPad' in user_agent:
+             pass # Production mode: logs silenced
+        
         try:
             # 1. Cihaz/Tarayıcı Aboneliğini Kaydet (SubscriptionInfo)
             endpoint = subscription_data.get('endpoint')
