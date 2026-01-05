@@ -52,6 +52,7 @@ class Player(models.Model):
         ('SLB', 'Sol Bek'),
         ('SGB', 'Sağ Bek'),
         ('STP', 'Stoper'),
+        ('DOS', 'Defansif Orta Saha'),
         ('MO', 'Merkez Orta Saha'),
         ('MOO', 'Merkez Ofansif Orta Saha'),
         ('SLK', 'Sol Kanat'),
@@ -64,6 +65,27 @@ class Player(models.Model):
         choices=POSITION_CHOICES,
         verbose_name='Pozisyon',
         default='ST'
+    )
+
+    # New Fields
+    jersey_number = models.IntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(99)],
+        verbose_name='Forma Numarası',
+        null=True,
+        blank=True
+    )
+
+    FOOT_CHOICES = [
+        ('right', 'Sağ'),
+        ('left', 'Sol'),
+        ('both', 'Her İkisi')
+    ]
+
+    preferred_foot = models.CharField(
+        max_length=10,
+        choices=FOOT_CHOICES,
+        verbose_name='Ayak Tercihi',
+        default='right'
     )
 
     # --- Outfield Stats ---
@@ -146,6 +168,16 @@ class Player(models.Model):
                 self.pace * 0.10 +
                 self.defense * 0.10
             )
+        elif p == 'DOS':
+            # DOS: DEF(30%), PHY(25%), PAS(20%), PAC(10%), DRI(10%), SHO(5%)
+            score = (
+                self.defense * 0.30 +
+                self.physical * 0.25 +
+                self.passing * 0.20 +
+                self.pace * 0.10 +
+                self.dribbling * 0.10 +
+                self.shooting * 0.05
+            )
         elif p in ['SLB', 'SGB']:
             # Bek: PAC(30), DEF(10), PAS(15), DRI(15), PHY(30) -> Wait user wrote:
             # "Bek,30,0,15,15,30,10" -> Order was PAC, SHO, PAS, DRI, DEF, PHY
@@ -194,6 +226,12 @@ class Player(models.Model):
                 self.defense = 50
                 self.passing = 82
                 self.dribbling = 80
+                self.passing = 82
+                self.dribbling = 80
+        elif p == 'DOS':
+            self.defense, self.physical = 78, 80
+            self.passing, self.pace = 74, 65
+            self.dribbling, self.shooting = 68, 55
         elif p in ['SLB', 'SGB']:
             self.pace, self.defense = 78, 76
             self.physical, self.dribbling = 74, 72

@@ -7,20 +7,46 @@ from webpush import send_user_notification
 def send_push_notification(sender, instance, created, **kwargs):
     if created:
         try:
-            # Kullanıcının bildirim mesajını ve varsa linkini al
-            payload = {
-                "title": instance.title,
-                "body": instance.message,
-                "icon": "/logo1.png",  # Frontend'deki logo yolu
-                "url": instance.related_link if instance.related_link else "/"
-            }
+            from webpush.models import PushInformation
+            from pywebpush import webpush
+            import json
+            import sys
+
+            # 1. Kullanıcının aboneliklerini bul
+            push_infos = PushInformation.objects.filter(user=instance.recipient).select_related('subscription')
             
-            # Webpush kütüphanesini kullanarak bildirimi gönder
-            send_user_notification(
-                user=instance.recipient,
-                payload=payload,
-                ttl=1000
-            )
+            if not push_infos.exists():
+                return
+
+            # 2. Payload Hazırla
+            payload = json.dumps({
+                "title": instance.title if instance.title else "Bildirim",
+                "body": instance.message,
+                "icon": "/logo1.png",
+                "url": instance.related_link if instance.related_link else "/"
+            })
+
+            # 3. Her abonelik için gönder (Hardcoded Keys ile)
+            for pi in push_infos:
+                sub = pi.subscription
+                try:
+                    webpush(
+                        subscription_info={
+                            "endpoint": sub.endpoint,
+                            "keys": {
+                                "auth": sub.auth,
+                                "p256dh": sub.p256dh
+                            }
+                        },
+                        data=payload,
+                        vapid_private_key="vokzWx36wRxAC1BWWVKskRwR1QzhxRGkvEixejFa1zI",
+                        vapid_claims={"sub": "mailto:akdenizcselig@gmail.com"},
+                        ttl=60
+                    )
+                    print(f"✅ Auto-Push Sent to {instance.recipient.username}", file=sys.stdout, flush=True)
+                except Exception as inner_e:
+                    print(f"🔴 Auto-Push Error: {inner_e}", file=sys.stdout, flush=True)
+                    pass
+
         except Exception as e:
-            # Bildirim gönderilemezse logla ama sistemi durdurma
-            print(f"Push notification error: {e}")
+            print(f"🔴 Signal Error: {e}", file=sys.stdout, flush=True)

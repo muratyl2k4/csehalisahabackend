@@ -29,7 +29,7 @@ class PlayerRegisterSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Player
-        fields = ('password', 'email', 'name', 'position', 'age', 'overall', 'photo')
+        fields = ('password', 'email', 'name', 'position', 'age', 'overall', 'photo', 'jersey_number', 'preferred_foot')
         read_only_fields = ('overall',)
 
     def validate_email(self, value):
@@ -129,7 +129,10 @@ class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
                         data['photo'] = user.player_profile.photo.url if user.player_profile.photo else None
                         data['current_team'] = user.player_profile.current_team.id if user.player_profile.current_team else None
                         data['current_team'] = user.player_profile.current_team.id if user.player_profile.current_team else None
+                        data['current_team'] = user.player_profile.current_team.id if user.player_profile.current_team else None
                         data['is_email_verified'] = user.player_profile.is_email_verified
+                        data['jersey_number'] = user.player_profile.jersey_number
+                        data['preferred_foot'] = user.player_profile.preferred_foot
                     
                     data['is_staff'] = user.is_staff 
                     
@@ -156,7 +159,7 @@ class PlayerListSerializer(serializers.ModelSerializer):
             'overall', 'pace', 'shooting', 'passing', 'dribbling', 'defense', 'physical',
             'diving', 'handling', 'kicking', 'reflexes', 'speed', 'positioning',
             'total_goals', 'total_assists', 'matches_played',
-            'created_at'
+            'created_at', 'jersey_number', 'preferred_foot'
         ]
         read_only_fields = [
             'overall', 'pace', 'shooting', 'passing', 'dribbling', 'defense', 'physical',
@@ -180,6 +183,7 @@ class PlayerDetailSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'username', 'email', 'name', 'age', 'photo', 'position',
             'current_team', 'current_team_name', 'current_team_logo',
+            'jersey_number', 'preferred_foot',
             'overall', 
             # Outfield Stats
             'pace', 'shooting', 'passing', 'dribbling', 'defense', 'physical',
@@ -233,7 +237,12 @@ class PlayerUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Player
-        fields = ['name', 'position', 'photo', 'email']
+    preferred_foot = serializers.ChoiceField(choices=Player.FOOT_CHOICES, required=False)
+    jersey_number = serializers.IntegerField(required=False, min_value=1, max_value=99)
+
+    class Meta:
+        model = Player
+        fields = ['name', 'position', 'photo', 'email', 'jersey_number', 'preferred_foot']
 
     def validate_email(self, value):
         user = self.context['request'].user

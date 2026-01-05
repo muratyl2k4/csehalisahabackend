@@ -40,6 +40,8 @@ class PlayerViewSet(viewsets.ModelViewSet):
     # queryset = Player.objects.all().select_related('current_team') # Moved to get_queryset
     permission_classes = [AllowAny]
     pagination_class = PlayerPagination
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['name', 'current_team__name']
 
     def get_permissions(self):
         """

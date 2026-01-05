@@ -10,11 +10,7 @@ class NotificationViewSet(viewsets.ModelViewSet):
     Bildirimleri listeleme ve okundu işaretleme işlemleri.
     Sadece okuma (list/retrieve) ve özel aksiyonlar var.
     """
-
     serializer_class = NotificationSerializer
-    serializer_class = NotificationSerializer
-    # Remove class-level permission_classes to use get_permissions
-    # permission_classes = [permissions.IsAuthenticated, (permissions.IsAdminUser | IsReadOnly)]
 
     def get_permissions(self):
         """
@@ -59,7 +55,6 @@ class NotificationViewSet(viewsets.ModelViewSet):
         Her iki durumda da kayıtlı kullanıcıların Inbox'ına eklenir.
         """
         from webpush.models import SubscriptionInfo, PushInformation
-        from webpush.utils import send_to_subscription
         
         message = request.data.get('message')
         title = request.data.get('title', 'Duyuru')
@@ -68,8 +63,7 @@ class NotificationViewSet(viewsets.ModelViewSet):
         if not message:
             return Response({"detail": "Mesaj içeriği gereklidir."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # 1. PUSH Gönderimi
-        # 1. PUSH Gönderimi
+        # 1. Hedef Belirleme
         subscriptions = []
         target_users_for_db = []
 
@@ -97,7 +91,6 @@ class NotificationViewSet(viewsets.ModelViewSet):
             from django.contrib.auth.models import User
             target_users_for_db = User.objects.all()
 
-        s_count = 0
         import json
         payload = json.dumps({
             "title": title,
@@ -106,7 +99,7 @@ class NotificationViewSet(viewsets.ModelViewSet):
             "url": "/"
         })
 
-        # 2. DB Kaydı (Inbox) - Synchronous for immediate UI update
+        # 2. DB Kaydı (Inbox)
         notifications = [
             Notification(
                 recipient=user,
@@ -117,55 +110,45 @@ class NotificationViewSet(viewsets.ModelViewSet):
         ]
         Notification.objects.bulk_create(notifications)
 
-        # 3. PUSH Gönderimi (Asynchronous / Threaded)
-        # Prepare data for thread to avoid DB connection issues
-        sub_data_list = []
+        # 3. PUSH Gönderimi
+        from pywebpush import webpush
+        import sys 
+
+        print(f"DEBUG: Starting Broadcast to {len(subscriptions)} subs...", file=sys.stdout, flush=True)
+        
+        success_count = 0
         for sub in subscriptions:
-            sub_data_list.append({
-                "endpoint": sub.endpoint,
-                "keys": {
-                    "auth": sub.auth,
-                    "p256dh": sub.p256dh
-                }
-            })
+            try:
+                webpush(
+                    subscription_info={
+                        "endpoint": sub.endpoint,
+                        "keys": {
+                            "auth": sub.auth,
+                            "p256dh": sub.p256dh
+                        }
+                    },
+                    data=payload,
+                    vapid_private_key="vokzWx36wRxAC1BWWVKskRwR1QzhxRGkvEixejFa1zI",
+                    vapid_claims={"sub": "mailto:akdenizcselig@gmail.com"},
+                    ttl=60
+                )
+                success_count += 1
+            except Exception as e:
+                print(f"🔴 Push Error for {sub.endpoint[:20]}...", file=sys.stdout, flush=True)
+                print(f"   Error: {str(e)}", file=sys.stdout, flush=True)
+                if hasattr(e, 'response') and e.response:
+                    try:
+                        print(f"   Response: {e.response.text}", file=sys.stdout, flush=True)
+                    except:
+                        pass
+                pass
 
-        from django.conf import settings
-        import threading
-        
-        def send_push_thread(sub_list, payload, private_key, email):
-            from pywebpush import webpush
-            print(f"--- Thread Started: Sending to {len(sub_list)} devices ---")
-            success_count = 0
-            for sub_info in sub_list:
-                try:
-                    webpush(
-                        subscription_info=sub_info,
-                        data=payload,
-                        vapid_private_key=private_key,
-                        vapid_claims={"sub": email},
-                        ttl=60
-                    )
-                    success_count += 1
-                except Exception as e:
-                    # Log error silently or to file
-                    pass
-            print(f"--- Thread Finished: {success_count}/{len(sub_list)} sent ---")
-
-        # Start Thread
-        t = threading.Thread(target=send_push_thread, args=(
-            sub_data_list, 
-            payload, 
-            settings.WEBPUSH_SETTINGS['VAPID_PRIVATE_KEY'],
-            settings.WEBPUSH_SETTINGS['VAPID_ADMIN_EMAIL']
-        ))
-        t.start()
-        
         return Response({
-            "detail": f"Bildirim işlemi başlatıldı. ({len(sub_data_list)} Cihaz / {len(notifications)} Kullanıcı)"
+            "detail": f"Bildirim gönderildi. ({success_count}/{len(subscriptions)} Başarılı)"
         }, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=['post'])
-    def mark_all_read(self, request):
+    def mark_all_read(self, request, pk=None):
         """Tüm bildirimleri okundu işaretle"""
         Notification.objects.filter(recipient=request.user, is_read=False).update(is_read=True)
         return Response({'status': 'all marked as read'})
@@ -175,7 +158,7 @@ class NotificationViewSet(viewsets.ModelViewSet):
         """
         WebPush abonelik bilgisini kaydeder (JWT uyumlu).
         """
-        from webpush.models import PushInformation
+        pass
 
     @action(detail=False, methods=['post'], permission_classes=[permissions.AllowAny])
     def register_subscription(self, request):
@@ -191,16 +174,12 @@ class NotificationViewSet(viewsets.ModelViewSet):
         if not subscription_data:
             return Response({"detail": "No subscription data"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # DEBUG: Log iOS Subscriptions - Kept minimal for monitoring
-        user_agent = request.META.get('HTTP_USER_AGENT', '')
-        if 'iPhone' in user_agent or 'iPad' in user_agent:
-             pass # Production mode: logs silenced
-        
         try:
             # 1. Cihaz/Tarayıcı Aboneliğini Kaydet (SubscriptionInfo)
             endpoint = subscription_data.get('endpoint')
             keys = subscription_data.get('keys', {})
             
+            # User insisted on user_agent being here.
             subscription_info, created = SubscriptionInfo.objects.get_or_create(
                 endpoint=endpoint,
                 defaults={
@@ -222,4 +201,7 @@ class NotificationViewSet(viewsets.ModelViewSet):
             return Response({"status": "registered", "user": request.user.username}, status=status.HTTP_201_CREATED)
 
         except Exception as e:
+            # Catching attribute errors if user_agent doesn't exist to prevent full fatal crash
+            if "user_agent" in str(e):
+                 return Response({"detail": "Model error: user_agent mismatch. Contact admin."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
