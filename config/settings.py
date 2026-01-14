@@ -5,18 +5,14 @@ from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Load environment variables from .env file
 load_dotenv(BASE_DIR / '.env')
 
-# SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.environ.get('SECRET_KEY')
 
-# SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG') == 'True'
 
 ALLOWED_HOSTS = ['*']
 
-# Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -44,7 +40,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'corsheaders.middleware.CorsMiddleware',  # CORS middleware
+    'corsheaders.middleware.CorsMiddleware',  
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -72,7 +68,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-# Database
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -80,7 +75,6 @@ DATABASES = {
     }
 }
 
-# Password validation
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
@@ -96,7 +90,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-# Internationalization
 LANGUAGE_CODE = 'tr-tr'
 TIME_ZONE = 'Europe/Istanbul'
 USE_I18N = True
@@ -122,6 +115,7 @@ CLOUDINARY_STORAGE = {
 if os.environ.get('http_proxy'):
     CLOUDINARY_STORAGE['API_PROXY'] = os.environ.get('http_proxy')
 
+
 # Check if Cloudinary keys are loaded (Debug for Server)
 if not CLOUDINARY_STORAGE['CLOUD_NAME']:
     print("WARNING: CLOUDINARY_CLOUD_NAME is missing via os.environ!")
@@ -141,8 +135,15 @@ STORAGES = {
     },
 }
 
-# Fallback for older libraries relying on this
-# DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+# FORCE Cloudinary Proxy Configuration (PythonAnywhere Free Tier Fix)
+import cloudinary
+if os.environ.get('http_proxy'):
+    cloudinary.config(
+        cloud_name=os.environ.get('CLOUDINARY_CLOUD_NAME'),
+        api_key=os.environ.get('CLOUDINARY_API_KEY'),
+        api_secret=os.environ.get('CLOUDINARY_API_SECRET'),
+        api_proxy=os.environ.get('http_proxy')
+    )
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
@@ -164,6 +165,7 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 50,
     
     # Rate Limiting (Throttling)
+    #TODO
     'DEFAULT_THROTTLE_CLASSES': [
         'rest_framework.throttling.AnonRateThrottle',
         'rest_framework.throttling.UserRateThrottle'
@@ -176,15 +178,17 @@ REST_FRAMEWORK = {
 }
 
 # CORS settings - Allow frontend to access API
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:8000",
-    "http://127.0.0.1:8000",
-]
+# CORS_ALLOWED_ORIGINS = [
+#     "http://localhost:3000",
+#     "http://127.0.0.1:3000",
+#     "http://localhost:8000",
+#     "http://127.0.0.1:8000",
+# ]
 
-CORS_ALLOW_ALL_ORIGINS = True  # For development only
+CORS_ALLOW_ALL_ORIGINS = True  #TODO: For development only
 
+
+#JWT Settings
 from datetime import timedelta
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(days=10),
@@ -193,15 +197,6 @@ SIMPLE_JWT = {
     'BLACKLIST_AFTER_ROTATION': True,
 }
 
-# FORCE Cloudinary Proxy Configuration (PythonAnywhere Free Tier Fix)
-import cloudinary
-if os.environ.get('http_proxy'):
-    cloudinary.config(
-        cloud_name=os.environ.get('CLOUDINARY_CLOUD_NAME'),
-        api_key=os.environ.get('CLOUDINARY_API_KEY'),
-        api_secret=os.environ.get('CLOUDINARY_API_SECRET'),
-        api_proxy=os.environ.get('http_proxy')
-    )
 
 # Email Settings (SMTP)
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
@@ -213,8 +208,6 @@ EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
 EMAIL_FAIL_SILENTLY = False
 
 # WebPush Configuration
-# WebPush Configuration
-# Keys might come with quotes from .env or dashboard, strip them just in case.
 vapid_public = os.environ.get("VAPID_PUBLIC_KEY", "")
 vapid_private = os.environ.get("VAPID_PRIVATE_KEY", "")
 
@@ -222,7 +215,7 @@ vapid_private = os.environ.get("VAPID_PRIVATE_KEY", "")
 vapid_contact = "mailto:akdenizcselig@gmail.com"
 
 WEBPUSH_SETTINGS = {
-    "VAPID_PUBLIC_KEY": "BK8dUHkFU9-FUji0p9ZCH73InHmvIWYhNeHnjg6sR3iBw1gFfqArwX4XkC6XwirE7tLmBUMcOVB58tNjQlPJmuI",
-    "VAPID_PRIVATE_KEY": "vokzWx36wRxAC1BWWVKskRwR1QzhxRGkvEixejFa1zI",
+    "VAPID_PUBLIC_KEY": vapid_public,
+    "VAPID_PRIVATE_KEY": vapid_private,
     "VAPID_ADMIN_EMAIL": vapid_contact
 }

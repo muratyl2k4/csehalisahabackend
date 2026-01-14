@@ -3,7 +3,7 @@ from .models import Team, TransferRequest
 
 
 class TransferRequestSerializer(serializers.ModelSerializer):
-    """Transfer isteği serializer"""
+    """Transfer request serializer"""
     player_name = serializers.CharField(source='player.name', read_only=True)
     player_photo = serializers.ImageField(source='player.photo', read_only=True)
     player_position = serializers.CharField(source='player.position', read_only=True)
@@ -16,7 +16,7 @@ class TransferRequestSerializer(serializers.ModelSerializer):
 
 
 class TeamListSerializer(serializers.ModelSerializer):
-    """Takım listesi için serializer"""
+    """Team list serializer"""
     total_matches = serializers.ReadOnlyField()
     win_rate = serializers.ReadOnlyField()
     draws = serializers.ReadOnlyField()
@@ -30,21 +30,21 @@ class TeamListSerializer(serializers.ModelSerializer):
 
 
 class TeamCreateSerializer(serializers.ModelSerializer):
-    """Takım oluşturma için serializer"""
+    """Team create serializer"""
     class Meta:
         model = Team
         fields = ['name', 'short_name', 'logo']
 
 
 class TeamUpdateSerializer(serializers.ModelSerializer):
-    """Takım güncelleme için serializer (Sadece izin verilen alanlar)"""
+    """Team update serializer (Only allowed fields)"""
     class Meta:
         model = Team
         fields = ['name', 'short_name', 'logo']
 
 
 class TeamDetailSerializer(serializers.ModelSerializer):
-    """Takım detay için serializer"""
+    """Team detail serializer"""
     total_matches = serializers.ReadOnlyField()
     win_rate = serializers.ReadOnlyField()
     draws = serializers.ReadOnlyField()
@@ -62,14 +62,14 @@ class TeamDetailSerializer(serializers.ModelSerializer):
         read_only_fields = ['wins', 'losses', 'draws', 'goals_scored', 'goals_conceded', 'points', 'created_at']
     
     def get_players(self, obj):
-        """Takımın oyuncularını getir"""
+        """Get team players"""
         from players.serializers import PlayerListSerializer
         # Optimize: Prefetch user to avoid N+1 when serializing 'username'
         players = obj.players.all().select_related('user')
         return PlayerListSerializer(players, many=True, context=self.context).data
 
     def get_recent_matches(self, obj):
-        """Takımın son 5 maçını getir"""
+        """Get team's last 5 matches"""
         from matches.models import Match
         from matches.serializers import MatchListSerializer
         from django.db.models import Q
@@ -81,7 +81,7 @@ class TeamDetailSerializer(serializers.ModelSerializer):
         return MatchListSerializer(matches, many=True, context=self.context).data
 
     def get_pending_requests(self, obj):
-        """Sadece kaptansa bekleyen istekleri göster"""
+        """Show pending requests only for captains"""
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             # Check if user is the captain of THIS team
@@ -95,7 +95,7 @@ class TeamDetailSerializer(serializers.ModelSerializer):
         return []
 
     def get_user_request_status(self, obj):
-        """Giriş yapan kullanıcının bu takıma bekleyen bir isteği var mı?"""
+        """Check if the logged in user has a pending request for this team"""
         request = self.context.get('request')
         if request and request.user.is_authenticated:
              try:
