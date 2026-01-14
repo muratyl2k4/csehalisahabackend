@@ -1,0 +1,42 @@
+
+  ---
+
+BACKEND DONE
+
+BUG & CRITICAL FIXES
+
+
+User Registration
+* Duplicate action kontrolü
+  verify_forgot_password_code action’ı iki kez tanımlı. 
+  Bir tanesi silinmeli veya URL’i değiştirilmelidir. 
+  Aksi halde biri sessizce override edilir.
+
+
+SECURITY & AUTHORIZATION
+
+
+
+VIEWSET & API DESIGN CLEANUP
+
+
+PERFORMANCE & ORM BEST PRACTICES
+
+* Leaderboard’larda Python-side sorting kaldırılmalı 
+  @property total_goals / total_assists kullanılmamalı
+  annotate + order_by ile sıralama yapılmalı
+
+
+TRANSACTION & DATA CONSISTENCY
+
+
+CODE QUALITY & MAINTAINABILITY
+
+
+
+ARCHITECTURE IMPROVEMENTS
+
+
+TESTING
+
+

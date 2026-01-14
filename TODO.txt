@@ -1,0 +1,141 @@
+---
+
+BACKEND TODO – Player & Transfer System (DRF)
+
+PRIORITY 0 — BUG & CRITICAL FIXES
+
+* Duplicate action kontrolü ==========================DONE
+  verify_forgot_password_code action’ı iki kez tanımlı. 
+  Bir tanesi silinmeli veya URL’i değiştirilmelidir. 
+  Aksi halde biri sessizce override edilir.
+
+* Password reset ve email verification code ayrımı
+  Aynı verification_code alanı iki farklı akışta kullanılmamalı.
+  Ayrı alanlar veya ayrı model oluşturulmalı:
+
+  * email_verification_code
+  * password_reset_code
+
+---
+
+PRIORITY 1 — SECURITY & AUTHORIZATION
+
+* TransferRequest görünürlüğünü queryset seviyesinde sınırla
+  get_queryset içinde sadece kaptanın takımına ait istekler dönmeli:
+  TransferRequest.objects.filter(team__captain=player)
+
+* Object-level authorization için custom permission kullan
+  IsTargetTeamCaptain permission’ı respond action’ında uygulanmalı
+
+* Visibility ve permission ayrımı korunmalı
+  get_queryset → hangi objeler görülebilir
+  permission → bu objeye ne yapılabilir
+
+* Forgot-password ve resend-code endpoint’lerine rate limit ekle
+  ScopedRateThrottle kullanılmalı
+
+---
+
+PRIORITY 2 — VIEWSET & API DESIGN CLEANUP
+
+* PlayerViewSet’i sorumluluklarına göre böl
+  Player CRUD
+  Profile / statistics
+  Leaderboard
+  Auth / verification
+
+* Auth ve verification endpoint’lerini PlayerViewSet’ten çıkar
+  verify_email
+  resend_code
+  forgot_password
+  reset_password
+
+* Sadece action kullanan ViewSet’lerde gereksiz mixin’leri kaldır
+  ListModelMixin / RetrieveModelMixin yalnızca gerçekten gerekiyorsa kullanılmalı
+
+---
+
+PRIORITY 3 — PERFORMANCE & ORM BEST PRACTICES
+
+* Leaderboard’larda Python-side sorting kaldırılmalı =========DONE
+  @property total_goals / total_assists kullanılmamalı
+  annotate + order_by ile sıralama yapılmalı
+
+* Leaderboard filtreleri netleştirilmeli == not sure to need it
+  is_email_verified = True
+  total_* > 0
+
+* DB’ye sorgu atan property’ler tespit edilip kaldırılmalı
+  veya sadece annotate ile beslenmeli
+
+---
+
+PRIORITY 4 — TRANSACTION & DATA CONSISTENCY
+
+* TransferRequest ACCEPT işlemi atomic transaction içine alınmalı
+  Race condition ihtimali engellenmeli
+
+* TransferRequest state machine netleştirilmeli
+  PENDING → ACCEPTED / REJECTED
+  Geçersiz geçişler engellenmeli
+
+---
+
+PRIORITY 5 — CODE QUALITY & MAINTAINABILITY
+
+* Broad except Exception kullanımı kaldırılmalı
+  Sadece beklenen exception’lar yakalanmalı
+
+* Magic string’ler sabitlenmeli
+  PENDING / ACCEPTED / REJECTED enum veya choices olmalı
+
+* Notification oluşturma logic’i view dışına taşınmalı
+  Service layer veya helper kullanılmalı
+
+---
+
+PRIORITY 6 — ARCHITECTURE IMPROVEMENTS
+
+* Service layer oluşturulmalı
+  Email verification
+  Password reset
+  Transfer accept / reject
+
+* Reusable object-level permission’lar yazılmalı
+  Owner / captain bazlı generic permission
+
+* Custom queryset method’ları eklenmeli
+  Player.objects.with_total_goals()
+  Player.objects.with_total_assists()
+
+---
+
+PRIORITY 7 — TESTING
+
+* Permission testleri yazılmalı
+  Kaptan olmayan kullanıcı → 403
+  Başka takım isteği → 404
+
+* Leaderboard testleri yazılmalı
+  Sıralama doğruluğu
+  Email verified filtresi
+
+* Password reset flow testleri
+  Code reuse engeli
+  Expiration kontrolü
+
+---
+
+FINAL CHECKLIST
+
+* Her ViewSet tek bir sorumluluğa sahip mi
+* Object visibility ve authorization net ayrılmış mı
+* Hesaplanan alanlar annotate ile mi geliyor
+* Yeni endpoint eklenirse güvenlik otomatik mi
+
+---
+
+
+
+EKSTRA DUZELTMELER: 
+* Player initial stat ve overall hesaplama fonksiyonu bastan asagi incelenip daha accurate daha clean code yazilmalidir.

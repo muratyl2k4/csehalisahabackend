@@ -1,0 +1,20 @@
+# Python / Django
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.env
+db.sqlite3
+db.sqlite3-journal
+media/
+scripts/
+generate_keys.py
+teams/management/
+
+# Node / React
+node_modules/
+dist/
+build/
+.DS_Store
+package-lock.json
