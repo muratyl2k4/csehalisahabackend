@@ -35,7 +35,7 @@ INSTALLED_APPS = [
     'matches',
     'notifications',
     'webpush',
-    'leagues',
+    'leagues.apps.LeaguesConfig',
 ]
 
 
