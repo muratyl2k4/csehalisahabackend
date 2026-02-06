@@ -35,7 +35,9 @@ INSTALLED_APPS = [
     'matches',
     'notifications',
     'webpush',
+    'leagues',
 ]
+
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

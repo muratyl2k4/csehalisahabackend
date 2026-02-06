@@ -6,12 +6,12 @@ from .models import Player
 @receiver(post_save, sender=User)
 def sync_user_to_player(sender, instance, **kwargs):
     """
-    User (Hesap) güncellendiğinde, bağlı Player (Oyuncu) profilini güncelle.
+    When User (Account) is updated, update the related Player (Profile) profile.
     """
     if hasattr(instance, 'player_profile'):
         player = instance.player_profile
         
-        # User isminin Player ismine yansıması
+        # Update Player name if User full name is changed
         full_name = instance.get_full_name()
         if full_name and player.name != full_name:
             player.name = full_name

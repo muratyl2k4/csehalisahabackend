@@ -25,10 +25,14 @@ class MatchListSerializer(serializers.ModelSerializer):
     team2_logo = serializers.ImageField(source='team2.logo', read_only=True)
     winner_name = serializers.SerializerMethodField()
     
+    # New Architecture Fields
+    week_name = serializers.CharField(source='week.name', read_only=True, default="Belirsiz")
+    league_id = serializers.IntegerField(source='week.league.id', read_only=True)
+    
     class Meta:
         model = Match
         fields = [
-            'id', 'date', 
+            'id', 'date', 'week', 'week_name', 'league_id',
             'team1', 'team1_name', 'team1_short_name', 'team1_logo', 'team1_score',
             'team2', 'team2_name', 'team2_short_name', 'team2_logo', 'team2_score',
             'is_finished', 'winner_name'
@@ -47,10 +51,13 @@ class MatchDetailSerializer(serializers.ModelSerializer):
     team2_players = serializers.SerializerMethodField()
     winner_name = serializers.SerializerMethodField()
     
+    week_name = serializers.CharField(source='week.name', read_only=True)
+    league_id = serializers.IntegerField(source='week.league.id', read_only=True)
+    
     class Meta:
         model = Match
         fields = [
-            'id', 'date',
+            'id', 'date', 'week', 'week_name', 'league_id',
             'team1_info', 'team1_score', 'team1_players',
             'team2_info', 'team2_score', 'team2_players',
             'is_finished', 'winner_name', 'created_at'

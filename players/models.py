@@ -121,7 +121,7 @@ class Player(models.Model):
 
 
     ##Gemini's base calculations 
-    ##TODO: Make it more accurate and write clean
+    ##TODO: Make it more accurate and write clean code
     def calculate_overall(self):
         """Calculate overall based on position"""
         p = self.position
@@ -286,4 +286,4 @@ class Player(models.Model):
     @property
     def matches_played(self):
         from matches.models import PlayerMatchStats
-        return PlayerMatchStats.objects.filter(player=self, played=True).count()
+        return PlayerMatchStats.objects.filter(player=self, played=True, match__is_finished=True).count()

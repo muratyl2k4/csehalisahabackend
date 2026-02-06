@@ -12,15 +12,15 @@ class PlayerMatchStatsInline(admin.TabularInline):
 
 @admin.register(Match)
 class MatchAdmin(admin.ModelAdmin):
-    list_display = ['__str__', 'date', 'team1_score', 'team2_score', 'is_finished', 'winner']
-    list_filter = ['is_finished', 'date', 'team1', 'team2']
+    list_display = ['__str__', 'week', 'date', 'team1_score', 'team2_score', 'is_finished', 'winner']
+    list_filter = ['week', 'is_finished', 'date', 'team1', 'team2']
     search_fields = ['team1__name', 'team2__name']
     date_hierarchy = 'date'
     inlines = [PlayerMatchStatsInline]
     # Turkish Admin Panel
     fieldsets = (
         ('Maç Bilgileri', {
-            'fields': ('date', 'team1', 'team2')
+            'fields': ('week', 'date', 'team1', 'team2')
         }),
         ('Skor', {
             'fields': ('team1_score', 'team2_score', 'is_finished')

@@ -2,7 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
-from django.db.models import Count, Q
+from django.db.models import Count, Q, Sum
 from .models import Team, TransferRequest
 from .serializers import TeamListSerializer, TeamDetailSerializer, TeamCreateSerializer, TeamUpdateSerializer, TransferRequestSerializer
 
@@ -190,6 +190,10 @@ class TransferRequestViewSet(viewsets.GenericViewSet, viewsets.mixins.ListModelM
 @permission_classes([AllowAny])
 def top_teams(request):
     """Get top 3 teams (by wins)"""
-    teams = Team.objects.all().order_by('-wins', '-losses')[:3]
+    # Annotate with total wins across all standings
+    teams = Team.objects.annotate(
+        total_wins=Sum('league_standings__wins')
+    ).order_by('-total_wins')[:3]
+    
     serializer = TeamListSerializer(teams, many=True, context={'request': request})
     return Response(serializer.data)

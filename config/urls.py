@@ -1,7 +1,5 @@
 from django.contrib import admin
 from django.urls import path, include
-from django.contrib import admin
-from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 
@@ -12,6 +10,7 @@ urlpatterns = [
     path('api/matches/', include('matches.urls')),
     path('api/auth/', include('players.auth_urls')),
     path('api/notifications/', include('notifications.urls')),
+    path('api/leagues/', include('leagues.urls')),
     path('webpush/', include('webpush.urls')),
 ]
 

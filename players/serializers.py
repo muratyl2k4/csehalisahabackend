@@ -208,16 +208,24 @@ class PlayerDetailSerializer(serializers.ModelSerializer):
         
         stats = PlayerMatchStats.objects.filter(
             player=obj,
-            played=True
+            played=True,
+            match__is_finished=True
         ).select_related('match', 'team').order_by('-match__date')
         
         return PlayerMatchHistorySerializer(stats, many=True).data
 
 class LeaderboardSerializer(serializers.ModelSerializer):
     """Leaderboard serializer"""
-    total_goals = serializers.ReadOnlyField()
-    total_assists = serializers.ReadOnlyField()
+    total_goals = serializers.SerializerMethodField()
+    total_assists = serializers.SerializerMethodField()
     matches_played = serializers.ReadOnlyField()
+
+    def get_total_goals(self, obj):
+        return getattr(obj, 'annotated_total_goals', obj.total_goals)
+
+    def get_total_assists(self, obj):
+        return getattr(obj, 'annotated_total_assists', obj.total_assists)
+        
     current_team_name = serializers.CharField(source='current_team.name', read_only=True)
     current_team_logo = serializers.ImageField(source='current_team.logo', read_only=True)
     

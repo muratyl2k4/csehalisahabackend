@@ -17,16 +17,11 @@ class TransferRequestSerializer(serializers.ModelSerializer):
 
 class TeamListSerializer(serializers.ModelSerializer):
     """Team list serializer"""
-    total_matches = serializers.ReadOnlyField()
-    win_rate = serializers.ReadOnlyField()
-    draws = serializers.ReadOnlyField()
     
-    goal_difference = serializers.ReadOnlyField()
-
     class Meta:
         model = Team
-        fields = ['id', 'name', 'short_name', 'logo', 'wins', 'losses', 'draws', 'goals_scored', 'goals_conceded', 'goal_difference', 'points', 'total_matches', 'win_rate', 'created_at']
-        read_only_fields = ['wins', 'losses', 'draws', 'goals_scored', 'goals_conceded', 'points', 'created_at']
+        fields = ['id', 'name', 'short_name', 'logo', 'created_at']
+        read_only_fields = ['created_at']
 
 
 class TeamCreateSerializer(serializers.ModelSerializer):
@@ -45,10 +40,6 @@ class TeamUpdateSerializer(serializers.ModelSerializer):
 
 class TeamDetailSerializer(serializers.ModelSerializer):
     """Team detail serializer"""
-    total_matches = serializers.ReadOnlyField()
-    win_rate = serializers.ReadOnlyField()
-    draws = serializers.ReadOnlyField()
-    goal_difference = serializers.ReadOnlyField()
     players = serializers.SerializerMethodField()
     recent_matches = serializers.SerializerMethodField()
     captain_id = serializers.ReadOnlyField(source='captain.id')
@@ -58,8 +49,8 @@ class TeamDetailSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Team
-        fields = ['id', 'name', 'short_name', 'logo', 'wins', 'losses', 'draws', 'goals_scored', 'goals_conceded', 'goal_difference', 'points', 'total_matches', 'win_rate', 'captain_id', 'captain_name', 'players', 'recent_matches', 'pending_requests', 'user_request_status', 'created_at']
-        read_only_fields = ['wins', 'losses', 'draws', 'goals_scored', 'goals_conceded', 'points', 'created_at']
+        fields = ['id', 'name', 'short_name', 'logo', 'captain_id', 'captain_name', 'players', 'recent_matches', 'pending_requests', 'user_request_status', 'created_at']
+        read_only_fields = ['created_at']
     
     def get_players(self, obj):
         """Get team players"""

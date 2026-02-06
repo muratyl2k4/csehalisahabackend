@@ -87,8 +87,8 @@ class PlayerViewSet(viewsets.ModelViewSet):
         from matches.models import PlayerMatchStats
         
         players = Player.objects.annotate(
-            total_goals=Sum('playermatchstats__goals')
-        ).filter(total_goals__gt=0).order_by('-total_goals')
+            annotated_total_goals=Sum('match_stats__goals')
+        ).filter(annotated_total_goals__gt=0).order_by('-annotated_total_goals')
 
         serializer = LeaderboardSerializer(players, many=True, context={'request': request})
         return Response(serializer.data)
@@ -101,10 +101,10 @@ class PlayerViewSet(viewsets.ModelViewSet):
         """
 
         players = Player.objects.annotate(
-            total_assists=Sum('playermatchstats__assists')
+            annotated_total_assists=Sum('match_stats__assists')
         ).filter(
-            total_assists__gt=0
-        ).order_by('-total_assists')
+            annotated_total_assists__gt=0
+        ).order_by('-annotated_total_assists')
 
         serializer = LeaderboardSerializer(
             players,

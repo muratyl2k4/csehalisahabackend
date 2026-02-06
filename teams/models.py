@@ -6,36 +6,16 @@ class Team(models.Model):
     name = models.CharField(max_length=100, verbose_name='Takım Adı', unique=True)
     short_name = models.CharField(max_length=5, verbose_name='Kısaltma', blank=True, null=True)
     logo = models.ImageField(upload_to='team_logos/', verbose_name='Takım Logosu', blank=True, null=True)
-    wins = models.IntegerField(default=0, verbose_name='Kazanılan Maçlar')
-    draws = models.IntegerField(default=0, verbose_name='Beraberlikler')
-    losses = models.IntegerField(default=0, verbose_name='Kaybedilen Maçlar')
-    goals_scored = models.IntegerField(default=0, verbose_name='Atılan Goller')
-    goals_conceded = models.IntegerField(default=0, verbose_name='Yenen Goller')
-    points = models.IntegerField(default=0, verbose_name='Puan')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Oluşturulma Tarihi')
     captain = models.ForeignKey('players.Player', on_delete=models.SET_NULL, null=True, blank=True, related_name='captain_of', verbose_name='Kaptan')
     
     class Meta:
         verbose_name = 'Takım'
         verbose_name_plural = 'Takımlar'
-        ordering = ['-points', '-goals_scored', 'name']
+        ordering = ['name']
     
     def __str__(self):
         return self.name
-    
-    @property
-    def total_matches(self):
-        return self.wins + self.draws + self.losses
-    
-    @property
-    def win_rate(self):
-        if self.total_matches == 0:
-            return 0
-        return round((self.wins / self.total_matches) * 100, 1)
-    
-    @property
-    def goal_difference(self):
-        return self.goals_scored - self.goals_conceded
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)

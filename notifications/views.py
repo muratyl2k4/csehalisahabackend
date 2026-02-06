@@ -175,7 +175,7 @@ class NotificationViewSet(viewsets.ModelViewSet):
             return Response({"detail": "No subscription data"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            # 1. Cihaz/Tarayıcı Aboneliğini Kaydet (SubscriptionInfo)
+            # 1. Device/Browser Subscription Registration (SubscriptionInfo)
             endpoint = subscription_data.get('endpoint')
             keys = subscription_data.get('keys', {})
             
@@ -190,7 +190,7 @@ class NotificationViewSet(viewsets.ModelViewSet):
                 }
             )
 
-            # 2. Eğer kullanıcı giriş yapmışsa, bu cihazı kullanıcıyla eşleştir (PushInformation)
+            # 2. If user is authenticated, associate this device with the user (PushInformation)
             if request.user.is_authenticated:
                 PushInformation.objects.get_or_create(
                     user=request.user,

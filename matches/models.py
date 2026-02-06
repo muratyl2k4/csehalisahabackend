@@ -21,6 +21,17 @@ class Match(models.Model):
     team1_score = models.IntegerField(default=0, verbose_name='Takım 1 Skor')
     team2_score = models.IntegerField(default=0, verbose_name='Takım 2 Skor')
     is_finished = models.BooleanField(default=False, verbose_name='Maç Bitti mi?')
+    
+    # New Architecture: Match linked to Week
+    week = models.ForeignKey(
+        'leagues.Week', 
+        on_delete=models.CASCADE, 
+        related_name='matches', 
+        verbose_name='Hafta',
+        null=True,
+        blank=True
+    )
+    
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Oluşturulma Tarihi')
     
     class Meta:
@@ -43,7 +54,7 @@ class Match(models.Model):
         return None  # Beraberlik
     
     def save(self, *args, **kwargs):
-        """Update team statistics when match is finished"""
+        """Update standings when match is finished"""
         is_new = self.pk is None
         old_match = None
         
@@ -52,67 +63,107 @@ class Match(models.Model):
         
         super().save(*args, **kwargs)
         
-        # If the match is finished, update team statistics
+        # If week or league is missing, we cannot update standings
+        if not self.week:
+             return
+
         if self.is_finished:
             if is_new or (old_match and not old_match.is_finished):
-                self._update_team_stats()
-            elif old_match and (old_match.team1_score != self.team1_score or old_match.team2_score != self.team2_score):
+                self._update_standings()
+            elif old_match and (old_match.team1_score != self.team1_score or old_match.team2_score != self.team2_score or old_match.team1 != self.team1 or old_match.team2 != self.team2):
                 # Revert old scores
-                self._revert_team_stats(old_match)
+                self._revert_standings(old_match)
                 # Apply new scores
-                self._update_team_stats()
+                self._update_standings()
+        elif old_match and old_match.is_finished:
+             # Case: Match was finished but now is NOT finished (Revert stats)
+             self._revert_standings(old_match)
     
-    def _update_team_stats(self):
-        """Update team statistics (Points, G, B, M, Goals)"""
+    def _update_standings(self):
+        """Update Standing model (Points, G, B, M, Goals)"""
+        from leagues.models import Standing
+        
+        # Helper to get or create standing
+        def get_standing(team):
+             standing, _ = Standing.objects.get_or_create(league=self.week.league, team=team)
+             return standing
+
+        s1 = get_standing(self.team1)
+        s2 = get_standing(self.team2)
+        
         # Process goals
-        self.team1.goals_scored += self.team1_score
-        self.team1.goals_conceded += self.team2_score
-        self.team2.goals_scored += self.team2_score
-        self.team2.goals_conceded += self.team1_score
+        s1.goals_for += self.team1_score
+        s1.goals_against += self.team2_score
+        s2.goals_for += self.team2_score
+        s2.goals_against += self.team1_score
         
         # Process result
-        if self.team1_score > self.team2_score:
-            self.team1.wins += 1
-            self.team1.points += 3
-            self.team2.losses += 1
-        elif self.team2_score > self.team1_score:
-            self.team2.wins += 1
-            self.team2.points += 3
-            self.team1.losses += 1
-        else:
-            self.team1.draws += 1
-            self.team1.points += 1
-            self.team2.draws += 1
-            self.team2.points += 1
+        s1.played += 1
+        s2.played += 1
         
-        self.team1.save()
-        self.team2.save()
+        if self.team1_score > self.team2_score:
+            s1.wins += 1
+            s1.points += 3
+            s2.losses += 1
+        elif self.team2_score > self.team1_score:
+            s2.wins += 1
+            s2.points += 3
+            s1.losses += 1
+        else:
+            s1.draws += 1
+            s1.points += 1
+            s2.draws += 1
+            s2.points += 1
+        
+        s1.save()
+        s2.save()
     
-    def _revert_team_stats(self, old_match):
-        """Revert old match result"""
+    def _revert_standings(self, old_match):
+        """Revert old match result from Standings"""
+        if not old_match.week:
+            return
+
+        from leagues.models import Standing
+        
+        # Helper to get standing (MUST exist if we are reverting)
+        def get_standing(team):
+             try:
+                 return Standing.objects.get(league=old_match.week.league, team=team)
+             except Standing.DoesNotExist:
+                 return None
+
+        s1 = get_standing(old_match.team1)
+        s2 = get_standing(old_match.team2)
+        
+        if not s1 or not s2:
+            return
+
         # Revert goals
-        self.team1.goals_scored -= old_match.team1_score
-        self.team1.goals_conceded -= old_match.team2_score
-        self.team2.goals_scored -= old_match.team2_score
-        self.team2.goals_conceded -= old_match.team1_score
+        s1.goals_for -= old_match.team1_score
+        s1.goals_against -= old_match.team2_score
+        s2.goals_for -= old_match.team2_score
+        s2.goals_against -= old_match.team1_score
         
         # Revert result
+        s1.played -= 1
+        s2.played -= 1
+
         if old_match.team1_score > old_match.team2_score:
-            self.team1.wins -= 1
-            self.team1.points -= 3
-            self.team2.losses -= 1
+            s1.wins -= 1
+            s1.points -= 3
+            s2.losses -= 1
         elif old_match.team2_score > old_match.team1_score:
-            self.team2.wins -= 1
-            self.team2.points -= 3
-            self.team1.losses -= 1
+            s2.wins -= 1
+            s2.points -= 3
+            s1.losses -= 1
         else:
-            self.team1.draws -= 1
-            self.team1.points -= 1
-            self.team2.draws -= 1
-            self.team2.points -= 1
+            s1.draws -= 1
+            s1.points -= 1
+            s2.draws -= 1
+            s2.points -= 1
         
-        self.team1.save()
-        self.team2.save()
+        s1.save()
+        s2.save()
 
 
 class PlayerMatchStats(models.Model):

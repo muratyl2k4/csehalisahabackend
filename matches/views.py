@@ -1,5 +1,6 @@
-from rest_framework import viewsets
+from rest_framework import viewsets, filters
 from rest_framework.permissions import AllowAny
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from django.db.models import Q
@@ -13,9 +14,14 @@ class MatchViewSet(viewsets.ReadOnlyModelViewSet):
     
     list: List all matches (sorted by latest first)
     retrieve: Get match details (with player statistics)
+    filterset_fields: is_finished, week, week__league
+    ordering_fields: date
     """
     queryset = Match.objects.all().select_related('team1', 'team2')
     permission_classes = [AllowAny]
+    filter_backends = [filters.OrderingFilter, DjangoFilterBackend]
+    ordering_fields = ['date']
+    filterset_fields = ['is_finished', 'week', 'week__league']
     
     def get_serializer_class(self):
         if self.action == 'retrieve':
@@ -23,7 +29,7 @@ class MatchViewSet(viewsets.ReadOnlyModelViewSet):
         return MatchListSerializer
     
     def get_queryset(self):
-        """En son oynanandan başlayarak sırala ve takım filtresi uygula"""
+        """Get latest matches and apply team filter"""
         queryset = Match.objects.all().select_related('team1', 'team2').order_by('-date')
         
         team_id = self.request.query_params.get('team', None)

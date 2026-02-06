@@ -5,3 +5,6 @@ class MatchesConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'matches'
     verbose_name = 'Maçlar'
+
+    def ready(self):
+        import matches.signals
