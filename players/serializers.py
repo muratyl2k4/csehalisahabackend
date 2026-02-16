@@ -125,10 +125,6 @@ class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
                         data['name'] = user.player_profile.name
                         data['id'] = user.player_profile.id
                         data['photo'] = user.player_profile.photo.url if user.player_profile.photo else None
-                        data['id'] = user.player_profile.id
-                        data['photo'] = user.player_profile.photo.url if user.player_profile.photo else None
-                        data['current_team'] = user.player_profile.current_team.id if user.player_profile.current_team else None
-                        data['current_team'] = user.player_profile.current_team.id if user.player_profile.current_team else None
                         data['current_team'] = user.player_profile.current_team.id if user.player_profile.current_team else None
                         data['is_email_verified'] = user.player_profile.is_email_verified
                         data['jersey_number'] = user.player_profile.jersey_number
@@ -181,6 +177,7 @@ class PlayerDetailSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Player
+
         fields = [
             'id', 'username', 'email', 'name', 'age', 'photo', 'position',
             'current_team', 'current_team_name', 'current_team_logo',
@@ -243,9 +240,6 @@ class PlayerUpdateSerializer(serializers.ModelSerializer):
     position = serializers.ChoiceField(choices=Player.POSITION_CHOICES, required=False)
     photo = serializers.ImageField(required=False, allow_null=True)
     email = serializers.EmailField(required=False)
-
-    class Meta:
-        model = Player
     preferred_foot = serializers.ChoiceField(choices=Player.FOOT_CHOICES, required=False)
     jersey_number = serializers.IntegerField(required=False, min_value=1, max_value=99)
 

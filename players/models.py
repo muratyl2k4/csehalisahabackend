@@ -89,6 +89,8 @@ class Player(models.Model):
         default='right'
     )
 
+    
+
     # --- Outfield Stats ---
     pace = models.IntegerField(default=50, validators=[MinValueValidator(0), MaxValueValidator(99)], verbose_name='Hız (PAC)')
     shooting = models.IntegerField(default=50, validators=[MinValueValidator(0), MaxValueValidator(99)], verbose_name='Şut (SHO)')
@@ -96,6 +98,25 @@ class Player(models.Model):
     dribbling = models.IntegerField(default=50, validators=[MinValueValidator(0), MaxValueValidator(99)], verbose_name='Dribling (DRI)')
     defense = models.IntegerField(default=50, validators=[MinValueValidator(0), MaxValueValidator(99)], verbose_name='Defans (DEF)')
     physical = models.IntegerField(default=50, validators=[MinValueValidator(0), MaxValueValidator(99)], verbose_name='Fizik (PHY)')
+    
+    # --- RATING OPTIMIZATION (Running Totals) ---
+    rating_count = models.IntegerField(default=0, verbose_name='Oylanma Sayısı')
+    
+    # Outfield Totals
+    total_rating_pace = models.IntegerField(default=0)
+    total_rating_shooting = models.IntegerField(default=0)
+    total_rating_passing = models.IntegerField(default=0)
+    total_rating_dribbling = models.IntegerField(default=0)
+    total_rating_defense = models.IntegerField(default=0)
+    total_rating_physical = models.IntegerField(default=0)
+    
+    # Goalkeeper Totals
+    total_rating_diving = models.IntegerField(default=0)
+    total_rating_handling = models.IntegerField(default=0)
+    total_rating_kicking = models.IntegerField(default=0)
+    total_rating_reflexes = models.IntegerField(default=0)
+    total_rating_speed = models.IntegerField(default=0)
+    total_rating_positioning = models.IntegerField(default=0)
 
     # --- Goalkeeper Stats ---
     diving = models.IntegerField(default=50, validators=[MinValueValidator(0), MaxValueValidator(99)], verbose_name='Uçma (DIV)')

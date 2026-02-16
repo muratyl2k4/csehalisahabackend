@@ -78,6 +78,8 @@ class PlayerViewSet(viewsets.ModelViewSet):
             return PlayerDetailSerializer
         return PlayerListSerializer
     
+
+    ##TODO make leaderboard stats generic.
     @action(detail=False, methods=['get'], url_path='leaderboard/goals')
     def goal_leaderboard(self, request):
         """

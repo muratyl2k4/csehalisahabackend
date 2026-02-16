@@ -1,5 +1,24 @@
 from django.contrib import admin
-from .models import Match, PlayerMatchStats
+from .models import Match, PlayerMatchStats, PlayerMatchRating
+
+
+@admin.register(PlayerMatchRating)
+class PlayerMatchRatingAdmin(admin.ModelAdmin):
+    list_display = ['match', 'rater', 'rated_player', 'rating_pace', 'rating_shooting', 'rating_passing', 'rating_defense', 'created_at']
+    list_filter = ['match', 'rater', 'rated_player', 'created_at']
+    search_fields = ['rater__name', 'rated_player__name', 'match__team1__name', 'match__team2__name']
+    
+    fieldsets = (
+        ('Oylama Bilgisi', {
+            'fields': ('match', 'rater', 'rated_player')
+        }),
+        ('Puanlar', {
+            'fields': ('rating_pace', 'rating_shooting', 'rating_passing', 'rating_dribbling', 'rating_defense', 'rating_physical')
+        }),
+        ('Yorum', {
+            'fields': ('comment',)
+        }),
+    )
 
 
 class PlayerMatchStatsInline(admin.TabularInline):
@@ -20,7 +39,7 @@ class MatchAdmin(admin.ModelAdmin):
     # Turkish Admin Panel
     fieldsets = (
         ('Maç Bilgileri', {
-            'fields': ('week', 'date', 'team1', 'team2')
+            'fields': ('week', 'date', 'team1', 'team2' , 'referee' , 'is_score_editable')
         }),
         ('Skor', {
             'fields': ('team1_score', 'team2_score', 'is_finished')

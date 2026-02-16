@@ -31,9 +31,12 @@ class PlayerAdmin(admin.ModelAdmin):
         ('Kişisel Bilgiler', {
             'fields': ('name', 'age', 'photo', 'current_team', 'position')
         }),
-        ('Oyuncu İstatistikleri', {
-            'fields': ('overall', 'pace', 'shooting', 'passing', 'dribbling', 'defense', 'physical',
-                       )
+        ('İstatistiki Bilgiler', {
+            'fields': ('pace', 'shooting', 'passing', 'dribbling', 'defense', 'physical', 'overall')
+        }),
+        ('Puanlama Detayları (Running Totals)', {
+            'fields': ('rating_count', 'total_rating_pace', 'total_rating_shooting', 'total_rating_passing', 'total_rating_dribbling', 'total_rating_defense', 'total_rating_physical'),
+            'classes': ('collapse',),
         }),
         ('Kaleci İstatistikleri', {
             'fields': ('diving', 'handling', 'kicking', 'reflexes', 'speed', 'positioning',
