@@ -8,7 +8,7 @@ class WeekInline(admin.TabularInline):
 class StandingInline(admin.TabularInline):
     model = Standing
     extra = 0
-    readonly_fields = ('played', 'wins', 'draws', 'losses', 'goals_for', 'goals_against', 'points')
+    # Allow editing (removed readonly_fields)
     can_delete = False
 
 @admin.register(League)
@@ -26,7 +26,8 @@ class WeekAdmin(admin.ModelAdmin):
 
 @admin.register(Standing)
 class StandingAdmin(admin.ModelAdmin):
-    list_display = ['team', 'league', 'points', 'played', 'wins', 'draws', 'losses', 'goal_difference']
+    list_display = ['team', 'league', 'points', 'played', 'wins', 'draws', 'losses', 'goals_for', 'goals_against', 'goal_difference']
+    list_editable = ['points', 'played', 'wins', 'draws', 'losses', 'goals_for', 'goals_against']
     list_filter = ['league']
     search_fields = ['team__name', 'league__name']
     readonly_fields = ('goal_difference',)

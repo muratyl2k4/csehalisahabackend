@@ -36,6 +36,7 @@ class MatchAdmin(admin.ModelAdmin):
     search_fields = ['team1__name', 'team2__name']
     date_hierarchy = 'date'
     inlines = [PlayerMatchStatsInline]
+    raw_id_fields = ['referee']
     # Turkish Admin Panel
     fieldsets = (
         ('Maç Bilgileri', {

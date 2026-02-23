@@ -8,12 +8,13 @@ class PlayerMatchStatsSerializer(serializers.ModelSerializer):
     player_name = serializers.CharField(source='player.name', read_only=True)
     player_photo = serializers.ImageField(source='player.photo', read_only=True)
     player_id = serializers.IntegerField(source='player.id', read_only=True)
+    player_user_id = serializers.IntegerField(source='player.user.id', read_only=True)
     jersey_number = serializers.IntegerField(source='player.jersey_number', read_only=True)
     team_name = serializers.CharField(source='team.name', read_only=True)
     
     class Meta:
         model = PlayerMatchStats
-        fields = ['id', 'player_id', 'player_name', 'player_photo', 'jersey_number', 'team_name', 'goals', 'assists', 'yellow_cards', 'red_cards', 'played']
+        fields = ['id', 'player_id', 'player_user_id', 'player_name', 'player_photo', 'jersey_number', 'team_name', 'goals', 'assists', 'yellow_cards', 'red_cards', 'played']
 
 
 class MatchListSerializer(serializers.ModelSerializer):

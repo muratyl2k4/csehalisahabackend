@@ -163,9 +163,9 @@ class MatchViewSet(viewsets.ReadOnlyModelViewSet):
                 if assist_player_id:
                      assist_stats = PlayerMatchStats.objects.select_for_update().get(match=match, player_id=assist_player_id)
                 
-                # Now perform updates
+                
                 scorer_stats.goals += 1
-                scorer_stats.save() # Signal will update match score!
+                scorer_stats.save()
 
                 if assist_player_id:
                     assist_stats.assists += 1
@@ -174,12 +174,6 @@ class MatchViewSet(viewsets.ReadOnlyModelViewSet):
                 return Response({"detail": f"Gol kaydedildi: {scorer_stats.player.name}"})
             
             except PlayerMatchStats.DoesNotExist:
-                 # Raise error to trigger rollback (or just handle it) -> But if we return here, transaction commits partially?
-                 # No, if we catch it inside atomic and return, it commits partial changes made BEFORE exception.
-                 # BUT here we select both BEFORE saving scorer. So if exception, scorer wasn't saved yet.
-                 # Wait, select_for_update().get() raises DoesNotExist if not found.
-                 # So if scorer not found -> exception -> catch -> return error. NOTHING SAVED. OK.
-                 # If assist not found -> exception -> catch -> return error. SCORER NOT SAVED YET. OK.
                  return Response({"detail": "Oyuncu bu maçta bulunamadı."}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])

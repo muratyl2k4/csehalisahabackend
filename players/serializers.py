@@ -121,6 +121,7 @@ class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
                   
                     data['username'] = user.username
                     data['email'] = user.email
+                    data['user_id'] = user.id # Always include User ID
                     if hasattr(user, 'player_profile'):
                         data['name'] = user.player_profile.name
                         data['id'] = user.player_profile.id
@@ -173,13 +174,14 @@ class PlayerDetailSerializer(serializers.ModelSerializer):
     current_team_logo = serializers.ImageField(source='current_team.logo', read_only=True)
     username = serializers.CharField(source='user.username', read_only=True)
     email = serializers.EmailField(source='user.email', read_only=True)
+    user_id = serializers.IntegerField(source='user.id', read_only=True)
     match_history = serializers.SerializerMethodField()
     
     class Meta:
         model = Player
 
         fields = [
-            'id', 'username', 'email', 'name', 'age', 'photo', 'position',
+            'id', 'user_id', 'username', 'email', 'name', 'age', 'photo', 'position',
             'current_team', 'current_team_name', 'current_team_logo',
             'jersey_number', 'preferred_foot',
             'overall', 
