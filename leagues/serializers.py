@@ -16,7 +16,8 @@ class TournamentMatchSerializer(serializers.ModelSerializer):
             'id', 'round_name', 'round_index', 'position',
             'team1', 'team1_name', 'team1_logo',
             'team2', 'team2_name', 'team2_logo',
-            'next_match', 'date', 'team1_score', 'team2_score', 'is_finished', 'is_live'
+            'next_match', 'date', 'team1_score', 'team2_score','team1_penalties',
+            'team2_penalties', 'is_finished', 'is_live'
         ]
 
 class TournamentSerializer(serializers.ModelSerializer):

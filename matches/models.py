@@ -25,6 +25,8 @@ class Match(models.Model):
     )
     team1_score = models.IntegerField(default=0, verbose_name='Takım 1 Skor')
     team2_score = models.IntegerField(default=0, verbose_name='Takım 2 Skor')
+    team1_penalties = models.IntegerField(null=True, blank=True, verbose_name='Takım 1 Penaltı')
+    team2_penalties = models.IntegerField(null=True, blank=True, verbose_name='Takım 2 Penaltı')
     is_finished = models.BooleanField(default=False, verbose_name='Maç Bitti mi?')
     finished_at = models.DateTimeField(null=True, blank=True, verbose_name='Bitiş Zamanı')
     is_live = models.BooleanField(default=False, verbose_name='Canlı mı?')
@@ -86,6 +88,14 @@ class Match(models.Model):
             return self.team1
         elif self.team2_score > self.team1_score:
             return self.team2
+            
+        # Draw in regular time, check penalties
+        if self.team1_penalties is not None and self.team2_penalties is not None:
+            if self.team1_penalties > self.team2_penalties:
+                return self.team1
+            elif self.team2_penalties > self.team1_penalties:
+                return self.team2
+                
         return None  # Beraberlik
     
     def save(self, *args, **kwargs):

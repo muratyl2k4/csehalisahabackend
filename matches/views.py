@@ -259,6 +259,17 @@ class MatchViewSet(viewsets.ReadOnlyModelViewSet):
         if not match.is_score_editable:
              return Response({"detail": "Maç skoru düzenlemeye kapalı."}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Handle penalty scores if provided
+        t1_pen = request.data.get('team1_penalties')
+        t2_pen = request.data.get('team2_penalties')
+        
+        if t1_pen is not None and t2_pen is not None:
+            try:
+                match.team1_penalties = int(t1_pen)
+                match.team2_penalties = int(t2_pen)
+            except ValueError:
+                return Response({"detail": "Penaltı skorları geçerli bir sayı olmalıdır."}, status=status.HTTP_400_BAD_REQUEST)
+
         match.is_finished = True
         match.is_live = False
         match.is_score_editable = False # Lock editing
