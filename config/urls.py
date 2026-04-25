@@ -11,6 +11,7 @@ urlpatterns = [
     path('api/auth/', include('players.auth_urls')),
     path('api/notifications/', include('notifications.urls')),
     path('api/leagues/', include('leagues.urls')),
+    path('api/news/', include('news.urls')),
     path('webpush/', include('webpush.urls')),
 ]
 

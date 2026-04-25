@@ -1,4 +1,5 @@
 from django.db import models
+from matches.models import Match
 
 class League(models.Model):
     """Lig Modeli"""
@@ -57,3 +58,42 @@ class Standing(models.Model):
     def goal_difference(self):
         return self.goals_for - self.goals_against
 
+class Tournament(models.Model):
+    """Lig için Turnuva Kabı"""
+    league = models.OneToOneField(League, on_delete=models.CASCADE, related_name='tournament', verbose_name='Lig')
+    name = models.CharField(max_length=100, default="Final Turnuvası", verbose_name='Turnuva Adı')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Turnuva'
+        verbose_name_plural = 'Turnuvalar'
+
+    def __str__(self):
+        return f"{self.name} - {self.league.name}"
+
+class TournamentMatch(Match):
+    """Turnuva Ağacındaki Bir Eşleşme Düğümü - Maç verilerini de içerir"""
+    tournament = models.ForeignKey(Tournament, on_delete=models.CASCADE, related_name='tournament_matches', verbose_name='Turnuva')
+    
+    round_name = models.CharField(max_length=50, verbose_name='Tur Adı', help_text='Örn: Çeyrek Final')
+    round_index = models.IntegerField(default=0, verbose_name='Tur Sırası', help_text='0: İlk Tur, 1: İkinci Tur vb.')
+    
+    # Eşleşme Bağlantısı
+    next_match = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='previous_matches', verbose_name='Sonraki Maç', help_text='Bu maçın kazananı hangi maça gidecek?')
+    
+    # Görselleştirme için
+    position = models.IntegerField(default=0, verbose_name='Sıralama Pozisyonu', help_text='Aynı turdaki maçların yukarıdan aşağıya sırası')
+
+    class Meta:
+        verbose_name = 'Turnuva Maçı'
+        verbose_name_plural = 'Turnuva Maçları'
+        ordering = ['round_index', 'position']
+
+    def save(self, *args, **kwargs):
+        self.match_type = 'TOURNAMENT'
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        t1 = self.team1.name if self.team1 else "?"
+        t2 = self.team2.name if self.team2 else "?"
+        return f"{self.round_name}: {t1} vs {t2}"

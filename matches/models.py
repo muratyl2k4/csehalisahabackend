@@ -11,13 +11,17 @@ class Match(models.Model):
         Team,
         on_delete=models.CASCADE,
         related_name='home_matches',
-        verbose_name='Takım 1'
+        verbose_name='Takım 1',
+        null=True,
+        blank=True
     )
     team2 = models.ForeignKey(
         Team,
         on_delete=models.CASCADE,
         related_name='away_matches',
-        verbose_name='Takım 2'
+        verbose_name='Takım 2',
+        null=True,
+        blank=True
     )
     team1_score = models.IntegerField(default=0, verbose_name='Takım 1 Skor')
     team2_score = models.IntegerField(default=0, verbose_name='Takım 2 Skor')
@@ -49,6 +53,17 @@ class Match(models.Model):
         null=True,
         blank=True
     )
+
+    MATCH_TYPE_CHOICES = [
+        ('LEAGUE', 'Lig Maçı'),
+        ('TOURNAMENT', 'Turnuva Maçı'),
+    ]
+    match_type = models.CharField(
+        max_length=20, 
+        choices=MATCH_TYPE_CHOICES, 
+        default='LEAGUE', 
+        verbose_name='Maç Tipi'
+    )
     
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Oluşturulma Tarihi')
     
@@ -58,7 +73,9 @@ class Match(models.Model):
         ordering = ['-date']
     
     def __str__(self):
-        return f"{self.team1.name} {self.team1_score} - {self.team2_score} {self.team2.name}"
+        t1 = self.team1.name if self.team1 else "?"
+        t2 = self.team2.name if self.team2 else "?"
+        return f"{t1} {self.team1_score} - {self.team2_score} {t2}"
     
     @property
     def winner(self):

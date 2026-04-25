@@ -51,6 +51,7 @@ def update_match_score_on_new_stat(sender, instance, created, **kwargs):
         match.save(update_fields=['team1_score', 'team2_score'])
 
 @receiver(post_save, sender=Match)
+@receiver(post_save, sender='leagues.TournamentMatch')
 def create_initial_player_stats(sender, instance, created, **kwargs):
     """
     When a match is created, automatically create PlayerMatchStats for all players
@@ -58,24 +59,28 @@ def create_initial_player_stats(sender, instance, created, **kwargs):
     """
     if created:
         # Team 1 Players
-        for player in instance.team1.players.all():
-            PlayerMatchStats.objects.get_or_create(
-                match=instance,
-                player=player,
-                defaults={'team': instance.team1}
-            )
+        if instance.team1:
+            for player in instance.team1.players.all():
+                PlayerMatchStats.objects.get_or_create(
+                    match=instance,
+                    player=player,
+                    defaults={'team': instance.team1}
+                )
         
-        for player in instance.team2.players.all():
-            PlayerMatchStats.objects.get_or_create(
-                match=instance,
-                player=player,
-                defaults={'team': instance.team2}
-            )
+        # Team 2 Players
+        if instance.team2:
+            for player in instance.team2.players.all():
+                PlayerMatchStats.objects.get_or_create(
+                    match=instance,
+                    player=player,
+                    defaults={'team': instance.team2}
+                )
 
 
 
 
 @receiver(pre_save, sender=Match)
+@receiver(pre_save, sender='leagues.TournamentMatch')
 def capture_old_match_state(sender, instance, **kwargs):
     """
     Capture the state of the match before saving to handle standings updates.
@@ -89,17 +94,15 @@ def capture_old_match_state(sender, instance, **kwargs):
         instance._old_match = None
 
 @receiver(post_save, sender=Match)
+@receiver(post_save, sender='leagues.TournamentMatch')
 def update_standings_on_match_finish(sender, instance, created, **kwargs):
     """
     Update league standings when a match is finished or modified.
+    Also handles tournament progression for TournamentMatch instances.
     """
-    if not instance.week:
-        return
-
     old_match = getattr(instance, '_old_match', None)
     
-    # helper functions defined inside to keep scope clean (or could be separate utility functions)
-    #TODO make utility functions
+    # helper functions defined inside to keep scope clean
     def _update_standings(match):
         from leagues.models import Standing
         if not match.week or not match.week.league: return
@@ -140,7 +143,6 @@ def update_standings_on_match_finish(sender, instance, created, **kwargs):
         if not match.week or not match.week.league: return
         league = match.week.league
         
-        # Helper to revert single team
         def revert_team(team, gf, ga):
             try:
                 s = Standing.objects.get(league=league, team=team)
@@ -162,13 +164,41 @@ def update_standings_on_match_finish(sender, instance, created, **kwargs):
         revert_team(match.team1, match.team1_score, match.team2_score)
         revert_team(match.team2, match.team2_score, match.team1_score)
 
-    # Logic
+    # --- 1. Tournament Progression (Subclass only) ---
     if instance.is_finished:
         if created or (old_match and not old_match.is_finished):
-            _update_standings(instance)
-        elif old_match and (old_match.team1_score != instance.team1_score or old_match.team2_score != instance.team2_score or old_match.team1 != instance.team1 or old_match.team2 != instance.team2):
+            try:
+                from leagues.models import TournamentMatch
+                # Direct query to ensure we get the subclass instance
+                node = TournamentMatch.objects.filter(pk=instance.pk).first()
+                
+                if node and node.next_match:
+                    winner = instance.winner
+                    if winner:
+                        next_node = node.next_match
+                        updated = False
+                        
+                        # Use actual Team objects for comparison
+                        if not next_node.team1:
+                            next_node.team1 = winner
+                            updated = True
+                        elif not next_node.team2 and next_node.team1_id != winner.id:
+                            next_node.team2 = winner
+                            updated = True
+                        
+                        if updated:
+                            next_node.save()
+            except Exception:
+                pass
+
+    # --- 2. League Standings (League matches only) ---
+    if instance.match_type == 'LEAGUE':
+        if instance.is_finished:
+            if created or (old_match and not old_match.is_finished):
+                _update_standings(instance)
+            elif old_match and (old_match.team1_score != instance.team1_score or old_match.team2_score != instance.team2_score or old_match.team1 != instance.team1 or old_match.team2 != instance.team2):
+                _revert_standings(old_match)
+                _update_standings(instance)
+        elif old_match and old_match.is_finished:
+            # Match was finished but now is NOT finished
             _revert_standings(old_match)
-            _update_standings(instance)
-    elif old_match and old_match.is_finished:
-        # Match was finished but now is NOT finished
-        _revert_standings(old_match)

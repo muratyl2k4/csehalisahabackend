@@ -2,7 +2,7 @@ from rest_framework import viewsets
 from rest_framework.permissions import AllowAny, IsAdminUser
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import League, Week, Standing
-from .serializers import LeagueSerializer, WeekSerializer, StandingSerializer
+from .serializers import LeagueSerializer, WeekSerializer, StandingSerializer, LeagueDetailSerializer
 
 class LeagueViewSet(viewsets.ModelViewSet):
     """
@@ -13,6 +13,11 @@ class LeagueViewSet(viewsets.ModelViewSet):
     """
     queryset = League.objects.all()
     serializer_class = LeagueSerializer
+    
+    def get_serializer_class(self):
+        if self.action == 'retrieve':
+            return LeagueDetailSerializer
+        return LeagueSerializer
     
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:

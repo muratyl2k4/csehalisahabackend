@@ -35,7 +35,7 @@ class MatchListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Match
         fields = [
-            'id', 'date', 'week', 'week_name', 'league_id',
+            'id', 'date', 'match_type', 'week', 'week_name', 'league_id',
             'team1', 'team1_name', 'team1_short_name', 'team1_logo', 'team1_score',
             'team2', 'team2_name', 'team2_short_name', 'team2_logo', 'team2_score',
             'is_finished', 'finished_at', 'voting_open', 'is_live', 'winner_name', 'is_score_editable'
@@ -69,7 +69,7 @@ class MatchDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Match
         fields = [
-            'id', 'date', 'week', 'week_name', 'league_id',
+            'id', 'date', 'match_type', 'week', 'week_name', 'league_id',
             'team1_info', 'team1_score', 'team1_players',
             'team2_info', 'team2_score', 'team2_players',
             'is_finished', 'finished_at', 'voting_open', 'is_live', 'winner_name', 'created_at',

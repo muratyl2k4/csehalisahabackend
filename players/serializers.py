@@ -122,6 +122,8 @@ class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
                     data['username'] = user.username
                     data['email'] = user.email
                     data['user_id'] = user.id # Always include User ID
+                    data['is_staff'] = user.is_staff
+                    data['is_superuser'] = user.is_superuser
                     if hasattr(user, 'player_profile'):
                         data['name'] = user.player_profile.name
                         data['id'] = user.player_profile.id

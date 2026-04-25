@@ -110,7 +110,7 @@ class RatingService:
             player.overall = player.calculate_overall()
             player.save()
             
-            print(f"Updated stats for {player.name}: Overall {player.overall}")
+            #print(f"Updated stats for {player.name}: Overall {player.overall}")
             
         except Player.DoesNotExist:
             print(f"Player {player_id} not found during rating update.")
